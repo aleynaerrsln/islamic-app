@@ -10,8 +10,10 @@ import { QuranScreen } from '../screens/QuranScreen';
 import { SurahDetailScreen } from '../screens/SurahDetailScreen';
 import { QiblaScreen } from '../screens/QiblaScreen';
 import { TasbihScreen } from '../screens/TasbihScreen';
+import { RamadanScreen } from '../screens/RamadanScreen';
 import { HadithScreen } from '../screens/HadithScreen';
 import { PrayerGuideScreen } from '../screens/PrayerGuideScreen';
+import { MosqueFinderScreen } from '../screens/MosqueFinderScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { MoreMenuModal } from '../components/MoreMenuModal';
 import { spacing } from '../theme';
@@ -30,6 +32,13 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 
   const moreMenuItems = [
     {
+      id: 'qibla',
+      title: 'Kıble Pusulası',
+      icon: 'compass',
+      description: 'Kıble yönünü bul',
+      onPress: () => navigation.navigate('Qibla'),
+    },
+    {
       id: 'hadith',
       title: 'Hadisler',
       icon: 'book-open-page-variant',
@@ -42,6 +51,13 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
       icon: 'book-education',
       description: 'Namaz nasıl kılınır, dualar',
       onPress: () => navigation.navigate('Guide'),
+    },
+    {
+      id: 'mosque',
+      title: 'Cami Bul',
+      icon: 'map-marker-radius',
+      description: 'Yakınındaki camileri haritada bul',
+      onPress: () => navigation.navigate('MosqueFinder'),
     },
     {
       id: 'settings',
@@ -142,7 +158,7 @@ function getIconName(routeName: string, isFocused: boolean): string {
   const icons: { [key: string]: { focused: string; unfocused: string } } = {
     Home: { focused: 'mosque', unfocused: 'mosque' },
     Quran: { focused: 'book-open-variant', unfocused: 'book-open-outline' },
-    Qibla: { focused: 'compass', unfocused: 'compass-outline' },
+    Ramadan: { focused: 'moon-waning-crescent', unfocused: 'moon-waning-crescent' },
     Tasbih: { focused: 'counter', unfocused: 'counter' },
   };
 
@@ -187,12 +203,12 @@ export function TabNavigator() {
       />
 
       <Tab.Screen
-        name="Qibla"
-        component={QiblaScreen}
+        name="Ramadan"
+        component={RamadanScreen}
         options={{
-          title: 'Kıble Pusulası',
+          title: 'Ramazan',
           headerShown: false,
-          tabBarLabel: 'Kıble',
+          tabBarLabel: 'Ramazan',
         }}
       />
 
@@ -208,6 +224,16 @@ export function TabNavigator() {
 
       {/* Hidden tabs - accessible via More menu */}
       <Tab.Screen
+        name="Qibla"
+        component={QiblaScreen}
+        options={{
+          title: 'Kıble Pusulası',
+          headerShown: false,
+          tabBarButton: () => null, // Hide from tab bar
+        }}
+      />
+
+      <Tab.Screen
         name="Hadith"
         component={HadithScreen}
         options={{
@@ -222,6 +248,16 @@ export function TabNavigator() {
         component={PrayerGuideScreen}
         options={{
           title: 'Namaz Rehberi',
+          headerShown: false,
+          tabBarButton: () => null, // Hide from tab bar
+        }}
+      />
+
+      <Tab.Screen
+        name="MosqueFinder"
+        component={MosqueFinderScreen}
+        options={{
+          title: 'Cami Bul',
           headerShown: false,
           tabBarButton: () => null, // Hide from tab bar
         }}

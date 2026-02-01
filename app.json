@@ -15,7 +15,9 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": ["fetch", "remote-notification"]
+        "UIBackgroundModes": ["fetch", "remote-notification"],
+        "NSLocationWhenInUseUsageDescription": "Yakındaki camileri bulmak için konumunuza ihtiyacımız var.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Yakındaki camileri bulmak için konumunuza ihtiyacımız var."
       }
     },
     "notification": {
@@ -28,14 +30,24 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Yakındaki camileri bulmak için konumunuza ihtiyacımız var."
+        }
+      ]
     ]
   }
 }

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Platform, Modal } from 'react-native';
+import { View, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Platform, Modal, Image, Alert } from 'react-native';
 import { Text, Button, useTheme, RadioButton, ActivityIndicator, Searchbar, IconButton } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as Notifications from 'expo-notifications';
+import * as Location from 'expo-location';
 import { spacing, borderRadius } from '../theme';
 import { turkeyLocations, City, District } from '../data/turkeyLocations';
 import { getPrayerTimesByCoordinates } from '../api/aladhan';
@@ -32,6 +33,13 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [autoDetectedLocation, setAutoDetectedLocation] = useState<{
+    city: string;
+    district: string;
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
   const totalSteps = 7;
   const currentStepNumber =
@@ -66,7 +74,19 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   }, [selectedDistrict]);
 
   const handleLocationComplete = () => {
-    if (selectedDistrict && selectedCity) {
+    if (autoDetectedLocation) {
+      // Otomatik konum kullanılıyor
+      setLocation({
+        latitude: autoDetectedLocation.latitude,
+        longitude: autoDetectedLocation.longitude,
+        city: autoDetectedLocation.district
+          ? `${autoDetectedLocation.city} - ${autoDetectedLocation.district}`
+          : autoDetectedLocation.city,
+      });
+      setLocationMode('auto');
+      setCurrentStep('notifications');
+    } else if (selectedDistrict && selectedCity) {
+      // Manuel seçim kullanılıyor
       setLocation({
         latitude: selectedDistrict.latitude,
         longitude: selectedDistrict.longitude,
@@ -96,6 +116,58 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
     }
   };
 
+  // Otomatik konum belirleme
+  const detectLocation = async () => {
+    setIsDetectingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Konum İzni Gerekli',
+          'Konumunuzu otomatik belirlemek için konum iznine ihtiyacımız var.',
+          [{ text: 'Tamam' }]
+        );
+        setIsDetectingLocation(false);
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const { latitude, longitude } = location.coords;
+
+      // Reverse geocoding ile şehir adını al
+      const [geocode] = await Location.reverseGeocodeAsync({ latitude, longitude });
+
+      if (geocode) {
+        const cityName = geocode.city || geocode.subregion || geocode.region || 'Bilinmeyen';
+        const districtName = geocode.district || geocode.subregion || '';
+
+        // Otomatik konum bilgisini kaydet
+        setAutoDetectedLocation({
+          city: cityName,
+          district: districtName,
+          latitude,
+          longitude,
+        });
+
+        // Namaz vakitlerini çek ve önizleme sayfasına git
+        await fetchPrayerTimes(latitude, longitude);
+        setCurrentStep('preview');
+      }
+    } catch (error) {
+      console.error('Konum alınamadı:', error);
+      Alert.alert(
+        'Konum Alınamadı',
+        'Konumunuz otomatik olarak belirlenemedi. Lütfen manuel olarak seçin.',
+        [{ text: 'Tamam' }]
+      );
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  };
+
   // Filtrelenmiş şehirler
   const filteredCities = turkeyLocations.cities.filter(city =>
     city.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -106,19 +178,65 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
     district.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
+  const canGoBack = currentStep !== 'welcome';
+
+  // Geri gitme fonksiyonu
+  const goBack = () => {
+    switch (currentStep) {
+      case 'location':
+        setCurrentStep('welcome');
+        break;
+      case 'city':
+        setAutoDetectedLocation(null); // Otomatik konumu temizle
+        setCurrentStep('location');
+        break;
+      case 'district':
+        setSearchQuery('');
+        setCurrentStep('city');
+        break;
+      case 'preview':
+        setSearchQuery('');
+        if (autoDetectedLocation) {
+          // Otomatik konumdan geldiyse, konum seçim sayfasına dön
+          setAutoDetectedLocation(null);
+          setCurrentStep('location');
+        } else {
+          // Manuel seçimden geldiyse, ilçe seçimine dön
+          setCurrentStep('district');
+        }
+        break;
+      case 'notifications':
+        setCurrentStep('preview');
+        break;
+      case 'privacy':
+        setCurrentStep('notifications');
+        break;
+    }
+  };
+
+  // Header with back button
+  const renderHeader = (showBack: boolean = true) => (
+    <View style={styles.headerContainer}>
+      {showBack && canGoBack ? (
+        <TouchableOpacity onPress={goBack} style={styles.headerBackButton}>
+          <Icon name="arrow-left" size={24} color="#fff" />
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.headerBackPlaceholder} />
+      )}
+    </View>
+  );
+
   // Welcome Screen
   const renderWelcome = () => (
     <View style={styles.stepContainer}>
+      {renderHeader(false)}
       <View style={styles.logoContainer}>
-        <View style={[styles.logoBox, { backgroundColor: theme.colors.primary }]}>
-          <View style={styles.logoPlaceholder}>
-            <View style={styles.minaret} />
-            <View style={styles.dome}>
-              <View style={styles.crescent} />
-            </View>
-            <View style={styles.minaret} />
-          </View>
-        </View>
+        <Image
+          source={require('../../assets/icon.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
       </View>
 
       <Text variant="headlineLarge" style={[styles.title, { color: theme.colors.onBackground }]}>
@@ -134,9 +252,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
       <Button
         mode="contained"
         onPress={() => setCurrentStep('location')}
-        style={styles.button}
+        style={[styles.button, { backgroundColor: '#FFF9C4' }]}
         contentStyle={styles.buttonContent}
-        labelStyle={styles.buttonLabel}
+        labelStyle={[styles.buttonLabel, { color: '#000' }]}
       >
         Başla
       </Button>
@@ -146,28 +264,51 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   // Location Method Selection
   const renderLocationMethod = () => (
     <View style={styles.stepContainer}>
+      {renderHeader()}
       <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
         Konumunuzu Belirleyin
       </Text>
 
       <Text variant="bodyMedium" style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
         Konum bilginiz gizliliğinize saygı duyularak yalnızca uygulama içinde kullanılır.
-        Lütfen konumunuzu listeden seçin.
       </Text>
 
       <View style={styles.spacer} />
 
+      {/* Otomatik Konum Butonu */}
+      <Button
+        mode="contained"
+        onPress={detectLocation}
+        style={[styles.button, { backgroundColor: '#4CAF50', marginBottom: spacing.md }]}
+        contentStyle={styles.buttonContent}
+        labelStyle={[styles.buttonLabel, { color: '#fff' }]}
+        icon="crosshairs-gps"
+        loading={isDetectingLocation}
+        disabled={isDetectingLocation}
+      >
+        {isDetectingLocation ? 'Konum Belirleniyor...' : 'Otomatik Bul'}
+      </Button>
+
+      {/* Ayırıcı */}
+      <View style={styles.dividerContainer}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>veya</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      {/* Manuel Seçim Butonu */}
       <Button
         mode="contained"
         onPress={() => {
           setSearchQuery('');
           setCurrentStep('city');
         }}
-        style={styles.button}
+        style={[styles.button, { backgroundColor: '#FFF9C4' }]}
         contentStyle={styles.buttonContent}
-        labelStyle={styles.buttonLabel}
+        labelStyle={[styles.buttonLabel, { color: '#000' }]}
+        icon="format-list-bulleted"
       >
-        Konum Seç
+        Listeden Seç
       </Button>
     </View>
   );
@@ -175,174 +316,186 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   // City Selection
   const renderCitySelection = () => (
     <View style={styles.stepContainer}>
+      {renderHeader()}
       <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
         İl Seçin
       </Text>
 
-      <Searchbar
-        placeholder="İl ara..."
-        onChangeText={setSearchQuery}
-        value={searchQuery}
-        style={styles.searchBar}
-      />
+      <View style={styles.modernSearchContainer}>
+        <Icon name="magnify" size={20} color="rgba(255,255,255,0.5)" style={{ marginRight: 8 }} />
+        <Searchbar
+          placeholder="İl ara..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={styles.modernSearchBar}
+          inputStyle={styles.modernSearchInput}
+          iconColor="transparent"
+        />
+      </View>
 
       <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
         {filteredCities.map((city) => (
           <TouchableOpacity
             key={city.id}
-            style={[
-              styles.listItem,
-              { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }
-            ]}
+            style={styles.modernListItem}
             onPress={() => {
               setSelectedCity(city);
               setSearchQuery('');
               setCurrentStep('district');
             }}
+            activeOpacity={0.7}
           >
-            <Text variant="bodyLarge" style={{ color: theme.colors.onSurface }}>
-              {city.name}
-            </Text>
-            <Icon name="chevron-right" size={24} color={theme.colors.outline} />
+            <View style={styles.listItemContent}>
+              <View style={styles.listItemIcon}>
+                <Icon name="map-marker" size={20} color="#FFF9C4" />
+              </View>
+              <Text style={styles.listItemText}>{city.name}</Text>
+            </View>
+            <Icon name="chevron-right" size={22} color="rgba(255,255,255,0.4)" />
           </TouchableOpacity>
         ))}
       </ScrollView>
-
-      <Button
-        mode="text"
-        onPress={() => setCurrentStep('location')}
-        style={styles.backButton}
-      >
-        Geri
-      </Button>
     </View>
   );
 
   // District Selection
   const renderDistrictSelection = () => (
     <View style={styles.stepContainer}>
+      {renderHeader()}
       <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
         İlçe Seçin
       </Text>
 
-      <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.primary }]}>
-        {selectedCity?.name}
-      </Text>
+      <View style={styles.selectedCityBadge}>
+        <Icon name="map-marker-check" size={16} color="#FFF9C4" />
+        <Text style={styles.selectedCityText}>{selectedCity?.name}</Text>
+      </View>
 
-      <Searchbar
-        placeholder="İlçe ara..."
-        onChangeText={setSearchQuery}
-        value={searchQuery}
-        style={styles.searchBar}
-      />
+      <View style={styles.modernSearchContainer}>
+        <Icon name="magnify" size={20} color="rgba(255,255,255,0.5)" style={{ marginRight: 8 }} />
+        <Searchbar
+          placeholder="İlçe ara..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={styles.modernSearchBar}
+          inputStyle={styles.modernSearchInput}
+          iconColor="transparent"
+        />
+      </View>
 
       <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
         {filteredDistricts.map((district) => (
           <TouchableOpacity
             key={district.id}
-            style={[
-              styles.listItem,
-              { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }
-            ]}
+            style={styles.modernListItem}
             onPress={() => {
               setSelectedDistrict(district);
               setSearchQuery('');
               setCurrentStep('preview');
             }}
+            activeOpacity={0.7}
           >
-            <Text variant="bodyLarge" style={{ color: theme.colors.onSurface }}>
-              {district.name}
-            </Text>
-            <Icon name="chevron-right" size={24} color={theme.colors.outline} />
+            <View style={styles.listItemContent}>
+              <View style={styles.listItemIcon}>
+                <Icon name="home-city" size={20} color="#FFF9C4" />
+              </View>
+              <Text style={styles.listItemText}>{district.name}</Text>
+            </View>
+            <Icon name="chevron-right" size={22} color="rgba(255,255,255,0.4)" />
           </TouchableOpacity>
         ))}
       </ScrollView>
-
-      <Button
-        mode="text"
-        onPress={() => {
-          setSearchQuery('');
-          setCurrentStep('city');
-        }}
-        style={styles.backButton}
-      >
-        Geri
-      </Button>
     </View>
   );
 
   // Preview with Prayer Times
-  const renderPreview = () => (
-    <View style={styles.stepContainer}>
-      <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
-        Konum Onayı
-      </Text>
+  const renderPreview = () => {
+    // Konum bilgisini belirle (otomatik veya manuel)
+    const locationDisplay = autoDetectedLocation
+      ? {
+          city: autoDetectedLocation.city,
+          district: autoDetectedLocation.district,
+          isAuto: true,
+        }
+      : selectedCity && selectedDistrict
+      ? {
+          city: selectedCity.name,
+          district: selectedDistrict.name,
+          isAuto: false,
+        }
+      : null;
 
-      <Text variant="bodyMedium" style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
-        Seçtiğiniz konum ve namaz vakitleri aşağıda gösterilmektedir.
-      </Text>
+    return (
+      <View style={styles.stepContainer}>
+        {renderHeader()}
+        <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
+          Konum Onayı
+        </Text>
 
-      {/* Seçilen Konum ve Namaz Vakitleri */}
-      {selectedCity && selectedDistrict && (
-        <View style={[styles.previewCard, { backgroundColor: theme.colors.surface }]}>
-          <Text variant="titleMedium" style={[styles.locationText, { color: theme.colors.onSurface }]}>
-            TÜRKİYE - {selectedCity.name.toUpperCase()} - {selectedDistrict.name.toUpperCase()}
-          </Text>
+        <Text variant="bodyMedium" style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
+          {locationDisplay?.isAuto
+            ? 'Otomatik belirlenen konum ve namaz vakitleri aşağıda gösterilmektedir.'
+            : 'Seçtiğiniz konum ve namaz vakitleri aşağıda gösterilmektedir.'}
+        </Text>
 
-          {isLoading ? (
-            <ActivityIndicator style={{ marginTop: spacing.md }} />
-          ) : prayerTimes ? (
-            <View style={styles.prayerTimesRow}>
-              <View style={styles.prayerTimeItem}>
-                <Text variant="bodySmall" style={{ color: theme.colors.outline }}>İmsak</Text>
-                <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>{prayerTimes.Fajr}</Text>
+        {/* Seçilen/Belirlenen Konum ve Namaz Vakitleri */}
+        {locationDisplay && (
+          <View style={[styles.previewCard, { backgroundColor: theme.colors.surface }]}>
+            {locationDisplay.isAuto && (
+              <View style={styles.autoLocationBadge}>
+                <Icon name="crosshairs-gps" size={14} color="#4CAF50" />
+                <Text style={styles.autoLocationBadgeText}>Otomatik Konum</Text>
               </View>
-              <View style={styles.prayerTimeItem}>
-                <Text variant="bodySmall" style={{ color: theme.colors.outline }}>Öğle</Text>
-                <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>{prayerTimes.Dhuhr}</Text>
-              </View>
-              <View style={styles.prayerTimeItem}>
-                <Text variant="bodySmall" style={{ color: theme.colors.outline }}>İkindi</Text>
-                <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>{prayerTimes.Asr}</Text>
-              </View>
-              <View style={styles.prayerTimeItem}>
-                <Text variant="bodySmall" style={{ color: theme.colors.outline }}>Akşam</Text>
-                <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>{prayerTimes.Maghrib}</Text>
-              </View>
-              <View style={styles.prayerTimeItem}>
-                <Text variant="bodySmall" style={{ color: theme.colors.outline }}>Yatsı</Text>
-                <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>{prayerTimes.Isha}</Text>
-              </View>
-            </View>
-          ) : null}
-        </View>
-      )}
+            )}
+            <Text variant="titleMedium" style={[styles.locationText, { color: theme.colors.onSurface }]}>
+              TÜRKİYE - {locationDisplay.city.toUpperCase()}
+              {locationDisplay.district ? ` - ${locationDisplay.district.toUpperCase()}` : ''}
+            </Text>
 
-      <View style={styles.spacer} />
+            {isLoading ? (
+              <ActivityIndicator style={{ marginTop: spacing.md }} />
+            ) : prayerTimes ? (
+              <View style={styles.prayerTimesRow}>
+                <View style={styles.prayerTimeItem}>
+                  <Text variant="bodySmall" style={{ color: theme.colors.outline }}>İmsak</Text>
+                  <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>{prayerTimes.Fajr}</Text>
+                </View>
+                <View style={styles.prayerTimeItem}>
+                  <Text variant="bodySmall" style={{ color: theme.colors.outline }}>Öğle</Text>
+                  <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>{prayerTimes.Dhuhr}</Text>
+                </View>
+                <View style={styles.prayerTimeItem}>
+                  <Text variant="bodySmall" style={{ color: theme.colors.outline }}>İkindi</Text>
+                  <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>{prayerTimes.Asr}</Text>
+                </View>
+                <View style={styles.prayerTimeItem}>
+                  <Text variant="bodySmall" style={{ color: theme.colors.outline }}>Akşam</Text>
+                  <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>{prayerTimes.Maghrib}</Text>
+                </View>
+                <View style={styles.prayerTimeItem}>
+                  <Text variant="bodySmall" style={{ color: theme.colors.outline }}>Yatsı</Text>
+                  <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>{prayerTimes.Isha}</Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        )}
 
-      <Button
-        mode="text"
-        onPress={() => {
-          setSearchQuery('');
-          setCurrentStep('city');
-        }}
-        style={{ marginBottom: spacing.sm }}
+        <View style={styles.spacer} />
+
+        <Button
+          mode="contained"
+          onPress={handleLocationComplete}
+          style={[styles.button, { backgroundColor: '#FFF9C4' }]}
+          contentStyle={styles.buttonContent}
+          labelStyle={[styles.buttonLabel, { color: '#000' }]}
+          disabled={(!selectedDistrict && !autoDetectedLocation) || isLoading}
       >
-        Konumu Değiştir
-      </Button>
-
-      <Button
-        mode="contained"
-        onPress={handleLocationComplete}
-        style={styles.button}
-        contentStyle={styles.buttonContent}
-        labelStyle={styles.buttonLabel}
-        disabled={!selectedDistrict || isLoading}
-      >
-        Devam Et
-      </Button>
-    </View>
-  );
+          Devam Et
+        </Button>
+      </View>
+    );
+  };
 
   // Notification Permission Screen
   const renderNotifications = () => {
@@ -357,6 +510,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
     return (
       <View style={styles.stepContainer}>
+        {renderHeader()}
         <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
           Ezan Alarmı
         </Text>
@@ -371,9 +525,11 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
           <Text style={styles.previewDate}>{dayName}, {date} {monthName}</Text>
 
           <View style={styles.notificationCard}>
-            <View style={[styles.notificationIcon, { backgroundColor: theme.colors.primary }]}>
-              <Icon name="mosque" size={20} color="white" />
-            </View>
+            <Image
+              source={require('../../assets/icon.png')}
+              style={styles.notificationIconImage}
+              resizeMode="cover"
+            />
             <View style={styles.notificationContent}>
               <View style={styles.notificationHeader}>
                 <Text style={styles.notificationAppName}>Hatırlatıcı</Text>
@@ -389,9 +545,10 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         <Button
           mode="contained"
           onPress={requestNotificationPermission}
-          style={[styles.button, { backgroundColor: '#FF9500' }]}
+          style={[styles.button, { backgroundColor: '#4CAF50', marginBottom: spacing.md }]}
           contentStyle={styles.buttonContent}
           labelStyle={[styles.buttonLabel, { color: 'white' }]}
+          icon="bell"
         >
           Ezan vaktinde bildirim al
         </Button>
@@ -399,9 +556,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         <Button
           mode="contained"
           onPress={skipNotifications}
-          style={[styles.button, { backgroundColor: '#007AFF', marginTop: spacing.sm }]}
+          style={[styles.button, { backgroundColor: '#FFF9C4' }]}
           contentStyle={styles.buttonContent}
-          labelStyle={[styles.buttonLabel, { color: 'white' }]}
+          labelStyle={[styles.buttonLabel, { color: '#000' }]}
         >
           Daha sonra ayarla
         </Button>
@@ -421,6 +578,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   // Privacy & Terms Screen
   const renderPrivacy = () => (
     <View style={styles.stepContainer}>
+      {renderHeader()}
       <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
         Kullanım Koşulları
       </Text>
@@ -500,12 +658,13 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
       <Button
         mode="contained"
         onPress={handlePrivacyComplete}
-        style={styles.button}
+        style={[styles.button, { backgroundColor: '#FFF9C4' }]}
         contentStyle={styles.buttonContent}
-        labelStyle={styles.buttonLabel}
+        labelStyle={[styles.buttonLabel, { color: '#000' }]}
         disabled={!privacyAccepted || !termsAccepted}
+        icon="check"
       >
-        Devam Et
+        Tamamla
       </Button>
 
       {/* Policy Modal */}
@@ -562,10 +721,19 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
       {renderCurrentStep()}
 
       {/* Step Indicator */}
-      <View style={styles.stepIndicator}>
-        <Text variant="bodySmall" style={{ color: theme.colors.outline }}>
-          {currentStepNumber} / {totalSteps}
-        </Text>
+      <View style={styles.stepIndicatorContainer}>
+        <View style={styles.stepDotsContainer}>
+          {[1, 2, 3, 4, 5, 6, 7].map((step) => (
+            <View
+              key={step}
+              style={[
+                styles.stepDot,
+                step === currentStepNumber && styles.stepDotActive,
+                step < currentStepNumber && styles.stepDotCompleted,
+              ]}
+            />
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -578,51 +746,17 @@ const styles = StyleSheet.create({
   stepContainer: {
     flex: 1,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.md,
   },
   logoContainer: {
     alignItems: 'center',
     marginTop: spacing.xl,
     marginBottom: spacing.xl,
   },
-  logoBox: {
-    width: 120,
-    height: 120,
-    borderRadius: borderRadius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  logoPlaceholder: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  minaret: {
-    width: 12,
-    height: 60,
-    backgroundColor: 'white',
-    borderTopLeftRadius: 6,
-    borderTopRightRadius: 6,
-    marginHorizontal: 8,
-  },
-  dome: {
-    width: 50,
-    height: 40,
-    backgroundColor: 'white',
-    borderTopLeftRadius: 50,
-    borderTopRightRadius: 50,
-    alignItems: 'center',
-    paddingTop: 4,
-  },
-  crescent: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 3,
-    borderColor: '#1B5E20',
-    borderRightColor: 'transparent',
-    transform: [{ rotate: '-45deg' }],
+  logoImage: {
+    width: 160,
+    height: 160,
+    borderRadius: borderRadius.xl,
   },
   title: {
     textAlign: 'center',
@@ -682,6 +816,66 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1,
   },
+  modernListItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  listItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  listItemIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  listItemText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '500',
+  },
+  modernSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  modernSearchBar: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    elevation: 0,
+  },
+  modernSearchInput: {
+    color: '#fff',
+  },
+  selectedCityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255,249,196,0.15)',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    marginBottom: spacing.sm,
+    gap: 6,
+  },
+  selectedCityText: {
+    color: '#FFF9C4',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   backButton: {
     marginBottom: spacing.md,
   },
@@ -695,6 +889,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: spacing.md,
   },
+  autoLocationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    marginBottom: spacing.sm,
+    gap: 4,
+  },
+  autoLocationBadgeText: {
+    color: '#4CAF50',
+    fontSize: 12,
+    fontWeight: '500',
+  },
   prayerTimesRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -706,6 +916,48 @@ const styles = StyleSheet.create({
   stepIndicator: {
     alignItems: 'center',
     paddingBottom: spacing.lg,
+  },
+  stepIndicatorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: spacing.xl,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+    minHeight: 50,
+  },
+  headerBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerBackPlaceholder: {
+    width: 40,
+    height: 40,
+  },
+  stepDotsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  stepDotActive: {
+    width: 24,
+    backgroundColor: '#FFF9C4',
+  },
+  stepDotCompleted: {
+    backgroundColor: 'rgba(255,249,196,0.5)',
   },
   notificationPreview: {
     marginTop: spacing.xl,
@@ -738,6 +990,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
+  },
+  notificationIconImage: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.md,
+    marginRight: spacing.md,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  dividerText: {
+    color: 'rgba(255,255,255,0.5)',
+    marginHorizontal: spacing.md,
+    fontSize: 14,
   },
   notificationContent: {
     flex: 1,
