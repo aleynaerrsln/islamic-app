@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Platform, Modal, Image, Alert } from 'react-native';
 import { Text, Button, useTheme, RadioButton, ActivityIndicator, Searchbar, IconButton } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 import { spacing, borderRadius } from '../theme';
