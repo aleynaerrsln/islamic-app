@@ -17,7 +17,10 @@
       "Bash(npx eas:*)",
       "WebFetch(domain:job-logs.eascdn.net)",
       "Bash(where:*)",
-      "Bash(where convert)"
+      "Bash(where convert)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: Firebase ve AdMob geçici olarak kaldırıldı \\(crash testi\\)\n\n- Tüm ekranlardan Firebase Analytics kaldırıldı\n- Tüm ekranlardan AdMob banner/interstitial reklamları kaldırıldı\n- app.json''dan Firebase ve AdMob pluginleri kaldırıldı\n- googleServicesFile referansları kaldırıldı\n- Crash sorununun kaynağını bulmak için temiz build\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(node resize-icons.js:*)",
+      "Bash(npx expo install:*)"
     ]
   }
 }
