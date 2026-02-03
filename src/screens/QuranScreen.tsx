@@ -9,10 +9,11 @@ import {
   TouchableRipple,
 } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { getAllSurahs } from '../api/quran';
 import { spacing, borderRadius } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
+import { BannerAdWrapper } from '../components/BannerAdWrapper';
 
 interface Surah {
   number: number;
@@ -156,6 +157,11 @@ export function QuranScreen() {
           style={styles.searchBar}
         />
 
+        {/* Banner Reklam */}
+        <View style={styles.adContainer}>
+          <BannerAdWrapper type="QURAN" />
+        </View>
+
         {/* Sure listesi */}
         <FlatList
           data={filteredSurahs}
@@ -223,5 +229,10 @@ const styles = StyleSheet.create({
   },
   arabicName: {
     fontFamily: 'System',
+  },
+  adContainer: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    alignItems: 'center',
   },
 });

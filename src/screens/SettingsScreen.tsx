@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Image, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Image, TouchableOpacity, Linking, Modal } from 'react-native';
 import {
   Text,
   List,
@@ -8,18 +8,77 @@ import {
   useTheme,
   RadioButton,
   Button,
+  IconButton,
 } from 'react-native-paper';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { useSettingsStore } from '../store/settingsStore';
-import { sendTestNotification } from '../hooks/useNotifications';
+import {
+  sendTestNotification,
+  sendTestRamadanMotivation,
+  sendTestIftarReminder,
+  sendTestRamazanBayrami,
+  sendTestKurbanBayrami,
+} from '../hooks/useNotifications';
 import { CALCULATION_METHODS, MEAL_OPTIONS } from '../types';
 import { spacing, borderRadius } from '../theme';
 import { BackgroundImagePicker } from '../components/BackgroundImagePicker';
 import { BACKGROUND_IMAGES, SOLID_COLORS } from '../data/backgroundImages';
+import { BannerAdWrapper } from '../components/BannerAdWrapper';
+
+// Destek bilgileri
+const SUPPORT_EMAIL = 'namazvakti.destek@gmail.com';
+const APP_VERSION = '1.0.0';
+
+// Gizlilik Politikası metni
+const PRIVACY_POLICY = `
+Namaz Vakti Gizlilik Politikası
+
+Son güncelleme: ${new Date().toLocaleDateString('tr-TR')}
+
+Bu gizlilik politikası, Namaz Vakti uygulamasının kişisel verilerinizi nasıl topladığını, kullandığını ve koruduğunu açıklar.
+
+1. Toplanan Veriler
+
+• Konum Bilgisi: Namaz vakitlerini doğru hesaplamak için cihazınızın konum bilgisini kullanırız. Bu bilgi yalnızca namaz vakitlerini belirlemek için kullanılır ve sunucularımızda saklanmaz.
+
+• Cihaz Bilgileri: Uygulamanın düzgün çalışması için temel cihaz bilgileri (işletim sistemi versiyonu, cihaz modeli) toplanabilir.
+
+2. Verilerin Kullanımı
+
+Toplanan veriler yalnızca aşağıdaki amaçlarla kullanılır:
+• Namaz vakitlerini hesaplamak
+• Uygulama deneyimini iyileştirmek
+• Hata ayıklama ve performans analizi
+
+3. Veri Paylaşımı
+
+Kişisel verileriniz üçüncü taraflarla paylaşılmaz veya satılmaz. Veriler yalnızca:
+• Yasal zorunluluk durumlarında
+• Uygulama hizmetlerini sağlamak için gerekli olduğunda kullanılabilir
+
+4. Reklamlar
+
+Uygulamamızda Google AdMob reklamları gösterilmektedir. Google, reklam kişiselleştirme için kendi gizlilik politikasına uygun şekilde veri toplayabilir.
+
+5. Veri Güvenliği
+
+Verilerinizin güvenliğini sağlamak için endüstri standardı güvenlik önlemleri kullanıyoruz.
+
+6. İletişim
+
+Gizlilik politikası hakkında sorularınız için:
+E-posta: namazvakti.destek@gmail.com
+
+7. Değişiklikler
+
+Bu gizlilik politikası zaman zaman güncellenebilir. Önemli değişiklikler uygulama içinden bildirilecektir.
+`.trim();
 
 export function SettingsScreen() {
   const theme = useTheme();
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
   const {
     calculationMethod,
@@ -126,8 +185,8 @@ export function SettingsScreen() {
             <>
               <List.Item
                 title="Ezan Sesi"
-                description="Bildirimde ezan sesi çalsın"
-                left={(props) => <List.Icon {...props} icon="volume-high" />}
+                description={ezanSoundEnabled ? "Namaz vaktinde ezan sesi çalacak" : "Sadece sessiz bildirim gelecek"}
+                left={(props) => <List.Icon {...props} icon={ezanSoundEnabled ? "volume-high" : "volume-off"} />}
                 right={() => (
                   <Switch
                     value={ezanSoundEnabled}
@@ -139,12 +198,62 @@ export function SettingsScreen() {
                 <Button
                   mode="outlined"
                   onPress={() => {
-                    sendTestNotification();
-                    Alert.alert('Bildirim', '2 saniye içinde test bildirimi gelecek');
+                    sendTestNotification(ezanSoundEnabled);
+                    Alert.alert(
+                      'Bildirim',
+                      ezanSoundEnabled
+                        ? '2 saniye içinde ezan sesli test bildirimi gelecek'
+                        : '2 saniye içinde test bildirimi gelecek'
+                    );
                   }}
                   icon="bell-ring"
+                  style={styles.testButton}
                 >
-                  Test Bildirimi Gönder
+                  Namaz Vakti Testi
+                </Button>
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    sendTestRamadanMotivation();
+                    Alert.alert('Bildirim', '2 saniye içinde Ramazan motivasyon bildirimi gelecek');
+                  }}
+                  icon="moon-waning-crescent"
+                  style={styles.testButton}
+                >
+                  Ramazan Motivasyon Testi
+                </Button>
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    sendTestIftarReminder();
+                    Alert.alert('Bildirim', '2 saniye içinde iftar hatırlatma bildirimi gelecek');
+                  }}
+                  icon="food"
+                  style={styles.testButton}
+                >
+                  İftar Hatırlatma Testi
+                </Button>
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    sendTestRamazanBayrami();
+                    Alert.alert('Bildirim', '2 saniye içinde Ramazan Bayramı bildirimi gelecek');
+                  }}
+                  icon="party-popper"
+                  style={styles.testButton}
+                >
+                  Ramazan Bayramı Testi
+                </Button>
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    sendTestKurbanBayrami();
+                    Alert.alert('Bildirim', '2 saniye içinde Kurban Bayramı bildirimi gelecek');
+                  }}
+                  icon="sheep"
+                  style={styles.testButton}
+                >
+                  Kurban Bayramı Testi
                 </Button>
               </View>
             </>
@@ -256,21 +365,41 @@ export function SettingsScreen() {
           >
             <RadioButton.Item label="Açık Tema" value="light" style={styles.radioItem} />
             <RadioButton.Item label="Koyu Tema" value="dark" style={styles.radioItem} />
-            <RadioButton.Item label="Sistem Teması" value="system" style={styles.radioItem} />
           </RadioButton.Group>
         </List.Section>
 
         <Divider />
 
-        {/* Uygulama Bilgisi */}
+        {/* Destek ve Hakkında */}
         <List.Section>
-          <List.Subheader>Hakkında</List.Subheader>
+          <List.Subheader>Destek ve Hakkında</List.Subheader>
+          <List.Item
+            title="Destek E-postası"
+            description={SUPPORT_EMAIL}
+            left={(props) => <List.Icon {...props} icon="email" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => {
+              Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Namaz Vakti Uygulama Desteği`);
+            }}
+          />
+          <List.Item
+            title="Gizlilik Politikası"
+            description="Kişisel verilerinizin kullanımı hakkında"
+            left={(props) => <List.Icon {...props} icon="shield-lock" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => setShowPrivacyPolicy(true)}
+          />
           <List.Item
             title="Uygulama Versiyonu"
-            description="1.0.0"
+            description={APP_VERSION}
             left={(props) => <List.Icon {...props} icon="information" />}
           />
         </List.Section>
+
+        {/* Banner Reklam */}
+        <View style={styles.adContainer}>
+          <BannerAdWrapper type="SETTINGS" />
+        </View>
 
         {/* Alt boşluk */}
         <View style={{ height: 100 }} />
@@ -281,6 +410,43 @@ export function SettingsScreen() {
         visible={showBackgroundPicker}
         onClose={() => setShowBackgroundPicker(false)}
       />
+
+      {/* Gizlilik Politikası Modal */}
+      <Modal
+        visible={showPrivacyPolicy}
+        onRequestClose={() => setShowPrivacyPolicy(false)}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.privacyModal, { backgroundColor: theme.colors.surface }]}>
+            <View style={styles.privacyHeader}>
+              <Text variant="titleLarge" style={{ color: theme.colors.onSurface, flex: 1 }}>
+                Gizlilik Politikası
+              </Text>
+              <IconButton
+                icon="close"
+                size={24}
+                onPress={() => setShowPrivacyPolicy(false)}
+              />
+            </View>
+            <ScrollView style={styles.privacyContent} showsVerticalScrollIndicator={true}>
+              <Text style={[styles.privacyText, { color: theme.colors.onSurface }]}>
+                {PRIVACY_POLICY}
+              </Text>
+            </ScrollView>
+            <View style={styles.privacyFooter}>
+              <Button
+                mode="contained"
+                onPress={() => setShowPrivacyPolicy(false)}
+                style={styles.privacyButton}
+              >
+                Anladım
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -295,6 +461,10 @@ const styles = StyleSheet.create({
   notificationOptions: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  testButton: {
+    marginTop: spacing.xs,
   },
   backgroundSettingRow: {
     flexDirection: 'row',
@@ -336,5 +506,49 @@ const styles = StyleSheet.create({
   themeLabel: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
+  },
+  adContainer: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+    alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  privacyModal: {
+    width: '100%',
+    maxHeight: '85%',
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+  },
+  privacyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  privacyContent: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  privacyText: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  privacyFooter: {
+    padding: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  privacyButton: {
+    borderRadius: borderRadius.md,
   },
 });

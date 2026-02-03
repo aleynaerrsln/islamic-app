@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "islamic-app",
-    "slug": "islamic-app",
+    "name": "Namaz Vakti",
+    "slug": "namaz-vakti",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,9 +13,14 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "bundleIdentifier": "com.namazvakti.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": ["fetch", "remote-notification"],
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ],
         "NSLocationWhenInUseUsageDescription": "Yakındaki camileri bulmak için konumunuza ihtiyacımız var.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Yakındaki camileri bulmak için konumunuza ihtiyacımız var."
       }
@@ -25,6 +30,8 @@
       "color": "#1B5E20"
     },
     "android": {
+      "package": "com.namazvakti.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -33,7 +40,9 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -41,13 +50,33 @@
     },
     "plugins": [
       "expo-font",
-      "expo-notifications",
+      "@react-native-firebase/app",
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/sounds/ezan.mp3"
+          ]
+        }
+      ],
       [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Yakındaki camileri bulmak için konumunuza ihtiyacımız var."
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-4083708100535757~3007768564",
+          "iosAppId": "ca-app-pub-4083708100535757~3007768564"
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c4f4a5cb-f191-46bb-9174-0f6b4ce274fa"
+      }
+    }
   }
 }

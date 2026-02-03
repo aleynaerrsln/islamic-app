@@ -10,6 +10,7 @@ import { TabNavigator } from './src/navigation/TabNavigator';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { lightTheme, darkTheme } from './src/theme';
 import { useSettingsStore } from './src/store/settingsStore';
+import { analyticsService, crashlyticsService, AnalyticsEvents } from './src/hooks/useAnalytics';
 
 const ONBOARDING_KEY = '@islamic_app_onboarding_complete';
 
@@ -33,13 +34,16 @@ export default function App() {
 
   const checkOnboarding = async () => {
     try {
-      // Onboarding'i test etmek için sıfırla (sonra bu satırı kaldır)
-      await AsyncStorage.removeItem(ONBOARDING_KEY);
-
       const completed = await AsyncStorage.getItem(ONBOARDING_KEY);
       setShowOnboarding(completed !== 'true');
+
+      // Firebase Analytics - Uygulama açıldı
+      analyticsService.logEvent(AnalyticsEvents.APP_OPENED, {
+        is_first_open: completed !== 'true',
+      });
     } catch (error) {
       setShowOnboarding(true);
+      crashlyticsService.logError(error as Error, 'checkOnboarding');
     } finally {
       setIsLoading(false);
     }
@@ -49,8 +53,13 @@ export default function App() {
     try {
       await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
       setShowOnboarding(false);
+
+      // Analytics - Onboarding tamamlandı
+      const { location } = useSettingsStore.getState();
+      analyticsService.logOnboardingCompleted(location?.city || 'Unknown');
     } catch (error) {
       console.error('Onboarding kayıt hatası:', error);
+      crashlyticsService.logError(error as Error, 'completeOnboarding');
     }
   };
 

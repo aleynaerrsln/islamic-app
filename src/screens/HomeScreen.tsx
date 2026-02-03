@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { Text, ActivityIndicator, useTheme } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useLocation } from '../hooks/useLocation';
 import { usePrayerTimes } from '../hooks/usePrayerTimes';
 import { useNotifications, scheduleRamadanMotivationNotifications, scheduleIftarReminderNotification, scheduleEidNotifications } from '../hooks/useNotifications';
@@ -20,6 +20,9 @@ import {
 } from '../utils/contextAwareContent';
 import { spacing, borderRadius } from '../theme';
 import { HIJRI_MONTHS, Location } from '../types';
+import { useAnalytics, AnalyticsEvents } from '../hooks/useAnalytics';
+import { BannerAdWrapper } from '../components/BannerAdWrapper';
+import { useAds } from '../services/adService';
 
 export function HomeScreen() {
   const theme = useTheme();
@@ -48,10 +51,34 @@ export function HomeScreen() {
 
   const { calculationMethod, setLocation: saveLocation, cardOpacity } = useSettingsStore();
   const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
+  const { logScreenView, logLocationChanged, logEvent } = useAnalytics();
+  const { showInterstitialForAction, showTimeTriggerAd } = useAds();
+
+  // Aylık takvimi aç (reklam göstererek)
+  const openMonthlyCalendar = async () => {
+    await showInterstitialForAction('monthly_calendar');
+    setMonthlyModalVisible(true);
+  };
+
+  // Ekran görüntüleme analytics
+  useEffect(() => {
+    logScreenView('HomeScreen');
+  }, []);
+
+  // 1 dakika kullanım sonrası zaman bazlı reklam tetikleyici
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      showTimeTriggerAd();
+    }, 65000); // 65 saniye (servis zaten 60 saniye kontrolü yapıyor)
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // Konum değiştiğinde kaydet ve yenile
   const handleLocationSelect = async (newLocation: Location) => {
     saveLocation(newLocation);
+    // Analytics - Konum değişikliği
+    logLocationChanged(newLocation.city || 'Unknown', false);
     // Namaz vakitlerini yenile
     setTimeout(() => {
       refresh();
@@ -198,7 +225,7 @@ export function HomeScreen() {
             gregorianDate={formatGregorianDate()}
             hijriDate={formatHijriDate()}
             timeToNextPrayer={formatTimeToNextPrayer()}
-            onExpandPress={() => setMonthlyModalVisible(true)}
+            onExpandPress={openMonthlyCalendar}
           />
         )}
 
@@ -232,6 +259,11 @@ export function HomeScreen() {
           color={dailyEsma.color}
           onExpandPress={() => setEsmaModalVisible(true)}
         />
+
+        {/* Banner Reklam */}
+        <View style={styles.adContainer}>
+          <BannerAdWrapper type="HOME" />
+        </View>
 
         {/* Alt boşluk */}
         <View style={{ height: 100 }} />
@@ -305,5 +337,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.6)',
     marginTop: 1,
+  },
+  adContainer: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+    alignItems: 'center',
   },
 });

@@ -7,12 +7,13 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Text, ActivityIndicator, useTheme, IconButton } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { getSurahWithTranslation } from '../api/quran';
 import { spacing, borderRadius } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
 import { useSettingsStore } from '../store/settingsStore';
+import { useAds } from '../services/adService';
 
 // Türkçe sure isimleri
 const SURAH_NAMES_TR: { [key: number]: string } = {
@@ -125,6 +126,7 @@ export function SurahDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<RouteParams, 'SurahDetail'>>();
   const { surahNumber } = route.params;
+  const { showInterstitialForAction } = useAds();
 
   const [surahInfo, setSurahInfo] = useState<SurahInfo | null>(null);
   const [ayahs, setAyahs] = useState<Ayah[]>([]);
@@ -133,6 +135,7 @@ export function SurahDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [fontSize, setFontSize] = useState(24); // Arapça font boyutu
   const [showFullSurah, setShowFullSurah] = useState(false); // Surenin tamamı görünürlüğü
+  const [hasShownAd, setHasShownAd] = useState(false); // Reklam gösterildi mi
 
   // Okunuş ve meal için font boyutu (Arapça'dan biraz küçük)
   const textFontSize = Math.max(14, fontSize - 8);
@@ -155,6 +158,14 @@ export function SurahDetailScreen() {
   useEffect(() => {
     loadSurah();
   }, [loadSurah]);
+
+  // Sure açıldığında bir kez reklam göster
+  useEffect(() => {
+    if (!hasShownAd && !isLoading && surahInfo) {
+      showInterstitialForAction('surah_detail');
+      setHasShownAd(true);
+    }
+  }, [hasShownAd, isLoading, surahInfo]);
 
   const onRefresh = () => {
     setRefreshing(true);

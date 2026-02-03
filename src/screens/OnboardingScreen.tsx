@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Platform, Modal, Image, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Platform, Modal, Image, Alert, Linking } from 'react-native';
 import { Text, Button, useTheme, RadioButton, ActivityIndicator, Searchbar, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 import { spacing, borderRadius } from '../theme';
 import { turkeyLocations, City, District } from '../data/turkeyLocations';
-import { getPrayerTimesByCoordinates } from '../api/aladhan';
+import { getDiyanetPrayerTimes, formatAllPrayerTimes } from '../api/diyanet';
 import { useSettingsStore } from '../store/settingsStore';
 import { PrayerTimes } from '../types';
 import { privacyPolicy, termsOfService } from '../data/legalTexts';
 
 const { width } = Dimensions.get('window');
+
+// Destek bilgileri
+const SUPPORT_EMAIL = 'namazvakti.destek@gmail.com';
 
 interface OnboardingScreenProps {
   onComplete: () => void;
@@ -51,13 +54,14 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
     currentStep === 'notifications' ? 6 :
     currentStep === 'privacy' ? 7 : 1;
 
-  // Namaz vakitlerini çek
+  // Namaz vakitlerini çek (Diyanet API)
   const fetchPrayerTimes = async (lat: number, lng: number) => {
     setIsLoading(true);
     try {
-      const response = await getPrayerTimesByCoordinates(lat, lng);
-      if (response.data) {
-        setPrayerTimes(response.data.timings);
+      const response = await getDiyanetPrayerTimes(lat, lng);
+      if (response.code === 200 && response.data) {
+        const formattedTimes = formatAllPrayerTimes(response.data.timings);
+        setPrayerTimes(formattedTimes);
       }
     } catch (error) {
       console.error('Namaz vakitleri alınamadı:', error);
@@ -658,6 +662,33 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         </TouchableOpacity>
       </TouchableOpacity>
 
+      {/* Destek Bilgisi */}
+      <TouchableOpacity
+        style={[
+          styles.supportCard,
+          {
+            backgroundColor: theme.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+            borderColor: theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+          }
+        ]}
+        onPress={() => {
+          Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Namaz Vakti Uygulama Desteği`);
+        }}
+      >
+        <View style={[styles.supportIconContainer, { backgroundColor: theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(44,62,80,0.1)' }]}>
+          <Icon name="email-outline" size={20} color={theme.dark ? '#E5E5E5' : '#2c3e50'} />
+        </View>
+        <View style={styles.supportContent}>
+          <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>
+            Destek
+          </Text>
+          <Text variant="bodySmall" style={{ color: theme.colors.outline }}>
+            {SUPPORT_EMAIL}
+          </Text>
+        </View>
+        <Icon name="open-in-new" size={18} color={theme.colors.outline} />
+      </TouchableOpacity>
+
       <View style={styles.spacer} />
 
       <Button
@@ -1065,5 +1096,24 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     padding: spacing.lg,
+  },
+  supportCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    marginTop: spacing.lg,
+  },
+  supportIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  supportContent: {
+    flex: 1,
   },
 });

@@ -9,12 +9,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { spacing } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
 import { useSettingsStore } from '../store/settingsStore';
-import { getMonthlyCalendar } from '../api/aladhan';
+import { usePrayerStore } from '../store/prayerStore';
+import { getDiyanetMonthlyCalendar } from '../api/diyanet';
+import { useAds } from '../services/adService';
 
 const { width } = Dimensions.get('window');
 
@@ -143,7 +145,10 @@ const TERAVIH_STEPS = [
 
 export function RamadanScreen() {
   const theme = useTheme();
-  const { cardOpacity, location, calculationMethod } = useSettingsStore();
+  const { cardOpacity, location } = useSettingsStore();
+  // Ana sayfa ile aynı namaz vakitlerini kullan (tutarlılık için)
+  const { prayerTimes } = usePrayerStore();
+  const { showInterstitialForAction } = useAds();
   const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
   const [currentTime, setCurrentTime] = useState(new Date());
   const [fastingRecord, setFastingRecord] = useState<FastingRecord>({});
@@ -154,18 +159,35 @@ export function RamadanScreen() {
   const [showImsakiyeModal, setShowImsakiyeModal] = useState(false);
   const [imsakiyeData, setImsakiyeData] = useState<ImsakiyeDay[]>([]);
   const [imsakiyeLoading, setImsakiyeLoading] = useState(false);
-  const [todayTimes, setTodayTimes] = useState<any>(null);
 
-  // İmsakiye verilerini API'den çek
+  // Teravih modalını aç (reklam göstererek)
+  const openTeravihModal = async () => {
+    await showInterstitialForAction('teravih_guide');
+    setShowTeravihModal(true);
+  };
+
+  // İmsakiye modalını aç (reklam göstererek)
+  const openImsakiyeModal = async () => {
+    await showInterstitialForAction('imsakiye_calendar');
+    setShowImsakiyeModal(true);
+  };
+
+  // Saati formatla (sadece saat:dakika)
+  const formatTime = (time: string | undefined) => {
+    if (!time) return '--:--';
+    return time.split(' ')[0];
+  };
+
+  // İmsakiye verilerini API'den çek (Ramazan takvimi için)
   const fetchImsakiye = useCallback(async () => {
     if (!location) return;
 
     setImsakiyeLoading(true);
     try {
-      // Şubat ve Mart ayları için verileri çek (Ramazan iki ayı kapsıyor)
+      // Şubat ve Mart ayları için verileri çek (Ramazan iki ayı kapsıyor) - Diyanet API
       const [febData, marData] = await Promise.all([
-        getMonthlyCalendar(2026, 2, location.latitude, location.longitude, calculationMethod),
-        getMonthlyCalendar(2026, 3, location.latitude, location.longitude, calculationMethod),
+        getDiyanetMonthlyCalendar(2026, 2, location.latitude, location.longitude),
+        getDiyanetMonthlyCalendar(2026, 3, location.latitude, location.longitude),
       ]);
 
       const allDays = [...febData.data, ...marData.data];
@@ -199,23 +221,12 @@ export function RamadanScreen() {
       });
 
       setImsakiyeData(formattedImsakiye);
-
-      // Bugünün vakitlerini ayarla
-      const today = new Date();
-      const todayStr = `${today.getDate()}-${today.getMonth() + 1}-${today.getFullYear()}`;
-      const todayData = allDays.find((day: any) => {
-        const d = day.date.gregorian;
-        return `${d.day}-${d.month.number}-${d.year}` === todayStr;
-      });
-      if (todayData) {
-        setTodayTimes(todayData.timings);
-      }
     } catch (error) {
       console.error('İmsakiye verileri alınamadı:', error);
     } finally {
       setImsakiyeLoading(false);
     }
-  }, [location, calculationMethod]);
+  }, [location]);
 
   // Her saniye güncelle
   useEffect(() => {
@@ -314,9 +325,9 @@ export function RamadanScreen() {
     const minutes = now.getMinutes();
     const currentMinutes = hours * 60 + minutes;
 
-    // todayTimes yoksa varsayılan değerler kullan
-    const imsakTime = todayTimes?.Imsak?.split(' ')[0] || todayTimes?.Fajr?.split(' ')[0] || '05:30';
-    const iftarTime = todayTimes?.Maghrib?.split(' ')[0] || '18:30';
+    // prayerTimes yoksa varsayılan değerler kullan (HomeScreen ile aynı kaynağı kullan)
+    const imsakTime = formatTime(prayerTimes?.Fajr) !== '--:--' ? formatTime(prayerTimes?.Fajr) : '05:30';
+    const iftarTime = formatTime(prayerTimes?.Maghrib) !== '--:--' ? formatTime(prayerTimes?.Maghrib) : '18:30';
 
     // İmsak ve iftar vakitlerini dakikaya çevir
     const [imsakH, imsakM] = imsakTime.split(':').map(Number);
@@ -362,7 +373,7 @@ export function RamadanScreen() {
       isFasting,
       isActive: true,
     };
-  }, [currentTime, ramadanInfo.isRamadan, todayTimes]);
+  }, [currentTime, ramadanInfo.isRamadan, prayerTimes]);
 
   // Tutulan oruç sayısı
   const fastingStats = useMemo(() => {
@@ -473,7 +484,23 @@ export function RamadanScreen() {
           </View>
         </View>
 
-        {/* İmsakiye */}
+        {/* İmsakiye Takvimi Kartı */}
+        <TouchableOpacity
+          style={[styles.imsakiyeClickCard, { backgroundColor: cardBgColor }]}
+          onPress={openImsakiyeModal}
+          activeOpacity={0.8}
+        >
+          <Icon name="calendar-month" size={32} color="#9C27B0" />
+          <View style={styles.imsakiyeClickInfo}>
+            <Text style={styles.imsakiyeClickTitle}>Ramazan İmsakiyesi</Text>
+            <Text style={styles.imsakiyeClickDesc}>
+              30 günlük imsak ve iftar vakitlerini görüntüle
+            </Text>
+            <Text style={styles.imsakiyeClickLink}>İmsakiyeyi görmek için tıklayın →</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Bugünün Vakitleri */}
         <View style={[styles.imsakiyeCard, { backgroundColor: cardBgColor }]}>
           <View style={styles.cardHeader}>
             <Icon name="clock-outline" size={20} color="#4CAF50" />
@@ -487,51 +514,35 @@ export function RamadanScreen() {
             <View style={styles.imsakiyeItem}>
               <Icon name="weather-night" size={20} color="#9C27B0" />
               <Text style={styles.imsakiyeLabel}>İmsak</Text>
-              <Text style={styles.imsakiyeTime}>{todayTimes?.Imsak?.split(' ')[0] || todayTimes?.Fajr?.split(' ')[0] || '--:--'}</Text>
+              <Text style={styles.imsakiyeTime}>{formatTime(prayerTimes?.Fajr)}</Text>
             </View>
             <View style={styles.imsakiyeItem}>
               <Icon name="weather-sunset-up" size={20} color="#FF9800" />
               <Text style={styles.imsakiyeLabel}>Güneş</Text>
-              <Text style={styles.imsakiyeTime}>{todayTimes?.Sunrise?.split(' ')[0] || '--:--'}</Text>
+              <Text style={styles.imsakiyeTime}>{formatTime(prayerTimes?.Sunrise)}</Text>
             </View>
             <View style={styles.imsakiyeItem}>
               <Icon name="weather-sunny" size={20} color="#FFC107" />
               <Text style={styles.imsakiyeLabel}>Öğle</Text>
-              <Text style={styles.imsakiyeTime}>{todayTimes?.Dhuhr?.split(' ')[0] || '--:--'}</Text>
+              <Text style={styles.imsakiyeTime}>{formatTime(prayerTimes?.Dhuhr)}</Text>
             </View>
             <View style={styles.imsakiyeItem}>
               <Icon name="weather-partly-cloudy" size={20} color="#FF5722" />
               <Text style={styles.imsakiyeLabel}>İkindi</Text>
-              <Text style={styles.imsakiyeTime}>{todayTimes?.Asr?.split(' ')[0] || '--:--'}</Text>
+              <Text style={styles.imsakiyeTime}>{formatTime(prayerTimes?.Asr)}</Text>
             </View>
             <View style={styles.imsakiyeItem}>
               <Icon name="weather-sunset-down" size={20} color="#E91E63" />
               <Text style={styles.imsakiyeLabel}>Akşam</Text>
-              <Text style={styles.imsakiyeTime}>{todayTimes?.Maghrib?.split(' ')[0] || '--:--'}</Text>
+              <Text style={styles.imsakiyeTime}>{formatTime(prayerTimes?.Maghrib)}</Text>
             </View>
             <View style={styles.imsakiyeItem}>
               <Icon name="weather-night" size={20} color="#673AB7" />
               <Text style={styles.imsakiyeLabel}>Yatsı</Text>
-              <Text style={styles.imsakiyeTime}>{todayTimes?.Isha?.split(' ')[0] || '--:--'}</Text>
+              <Text style={styles.imsakiyeTime}>{formatTime(prayerTimes?.Isha)}</Text>
             </View>
           </View>
         </View>
-
-        {/* İmsakiye Takvimi Kartı */}
-        <TouchableOpacity
-          style={[styles.imsakiyeClickCard, { backgroundColor: cardBgColor }]}
-          onPress={() => setShowImsakiyeModal(true)}
-          activeOpacity={0.8}
-        >
-          <Icon name="calendar-month" size={32} color="#9C27B0" />
-          <View style={styles.imsakiyeClickInfo}>
-            <Text style={styles.imsakiyeClickTitle}>Ramazan İmsakiyesi</Text>
-            <Text style={styles.imsakiyeClickDesc}>
-              30 günlük imsak ve iftar vakitlerini görüntüle
-            </Text>
-            <Text style={styles.imsakiyeClickLink}>İmsakiyeyi görmek için tıklayın →</Text>
-          </View>
-        </TouchableOpacity>
 
         {/* Oruç Takibi */}
         <View style={[styles.fastingCard, { backgroundColor: cardBgColor }]}>
@@ -636,7 +647,7 @@ export function RamadanScreen() {
         {/* Teravih Bilgisi */}
         <TouchableOpacity
           style={styles.teravihCard}
-          onPress={() => setShowTeravihModal(true)}
+          onPress={openTeravihModal}
           activeOpacity={0.8}
         >
           <Icon name="mosque" size={32} color="#4CAF50" />
