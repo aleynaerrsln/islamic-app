@@ -145,12 +145,7 @@ export function QuranScreen() {
       <View style={styles.container}>
         {/* Başlık */}
         <View style={styles.header}>
-          <Text variant="headlineMedium" style={{ color: theme.colors.primary }}>
-            Kur'an-ı Kerim
-          </Text>
-          <Text variant="bodyMedium" style={{ color: theme.colors.outline, marginTop: spacing.xs }}>
-            114 Sure
-          </Text>
+          <Text style={styles.headerTitle}>Kur'an-ı Kerim</Text>
         </View>
 
         {/* Arama */}
@@ -184,8 +179,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    padding: spacing.lg,
-    paddingTop: spacing.xl,
+    paddingTop: 60,
+    paddingBottom: spacing.md,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'center',
   },
   searchBar: {
     marginHorizontal: spacing.md,

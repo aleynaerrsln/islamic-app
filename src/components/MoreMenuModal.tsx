@@ -29,6 +29,16 @@ interface MoreMenuModalProps {
 
 export function MoreMenuModal({ visible, onClose, menuItems }: MoreMenuModalProps) {
   const theme = useTheme();
+  // Tema bazlı renkler
+  const menuItemBgColor = theme.colors.surfaceVariant;
+  const buttonTextColor = theme.colors.onSurface;
+  const buttonDescColor = theme.colors.onSurfaceVariant;
+  const menuIconColor = theme.colors.primary;
+  const menuIconBgColor = theme.colors.primary + '20';
+  const chevronColor = theme.colors.outline;
+  // Kapatma butonu için özel renkler
+  const closeButtonBgColor = theme.dark ? '#E5E5E5' : theme.colors.surfaceVariant;
+  const closeButtonTextColor = theme.dark ? '#1a1a1a' : theme.colors.onSurface;
 
   return (
     <Modal
@@ -56,7 +66,7 @@ export function MoreMenuModal({ visible, onClose, menuItems }: MoreMenuModalProp
                     key={item.id}
                     style={[
                       styles.menuItem,
-                      { backgroundColor: theme.colors.surfaceVariant },
+                      { backgroundColor: menuItemBgColor },
                       index === menuItems.length - 1 && styles.lastMenuItem,
                     ]}
                     onPress={() => {
@@ -65,28 +75,28 @@ export function MoreMenuModal({ visible, onClose, menuItems }: MoreMenuModalProp
                     }}
                     activeOpacity={0.7}
                   >
-                    <View style={[styles.iconContainer, { backgroundColor: theme.colors.primary + '20' }]}>
-                      <Icon name={item.icon} size={28} color={theme.colors.primary} />
+                    <View style={[styles.iconContainer, { backgroundColor: menuIconBgColor }]}>
+                      <Icon name={item.icon} size={28} color={menuIconColor} />
                     </View>
                     <View style={styles.textContainer}>
-                      <Text style={[styles.menuTitle, { color: theme.colors.onSurface }]}>
+                      <Text style={[styles.menuTitle, { color: buttonTextColor }]}>
                         {item.title}
                       </Text>
-                      <Text style={[styles.menuDescription, { color: theme.colors.onSurfaceVariant }]}>
+                      <Text style={[styles.menuDescription, { color: buttonDescColor }]}>
                         {item.description}
                       </Text>
                     </View>
-                    <Icon name="chevron-right" size={24} color={theme.colors.outline} />
+                    <Icon name="chevron-right" size={24} color={chevronColor} />
                   </TouchableOpacity>
                 ))}
               </View>
 
               {/* Close Button */}
               <TouchableOpacity
-                style={[styles.closeButton, { backgroundColor: theme.colors.surfaceVariant }]}
+                style={[styles.closeButton, { backgroundColor: closeButtonBgColor }]}
                 onPress={onClose}
               >
-                <Text style={[styles.closeButtonText, { color: theme.colors.primary }]}>
+                <Text style={[styles.closeButtonText, { color: closeButtonTextColor }]}>
                   Kapat
                 </Text>
               </TouchableOpacity>

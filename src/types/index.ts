@@ -172,6 +172,7 @@ export interface Settings {
   location: Location | null;
   locationMode: 'auto' | 'manual';
   background: BackgroundSettings;
+  cardOpacity: number; // 0-1 arası kart arka plan saydamlığı
 }
 
 // Hesaplama Metodları

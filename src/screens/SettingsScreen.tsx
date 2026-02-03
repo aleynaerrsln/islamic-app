@@ -35,6 +35,8 @@ export function SettingsScreen() {
     location,
     background,
     setBackgroundOpacity,
+    cardOpacity,
+    setCardOpacity,
   } = useSettingsStore();
 
   // Seçili arka plan önizlemesi
@@ -224,6 +226,31 @@ export function SettingsScreen() {
               </View>
             </View>
           )}
+
+          {/* Kart Saydamlık Ayarı */}
+          <View style={styles.opacityContainer}>
+            <View style={styles.opacityHeader}>
+              <Text variant="bodyLarge" style={{ color: theme.colors.onBackground }}>
+                Kart Saydamlığı
+              </Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                {Math.round(cardOpacity * 100)}%
+              </Text>
+            </View>
+            <View style={styles.sliderContainer}>
+              <Slider
+                style={styles.slider}
+                minimumValue={0.1}
+                maximumValue={1}
+                step={0.05}
+                value={cardOpacity}
+                onValueChange={setCardOpacity}
+                minimumTrackTintColor={theme.colors.primary}
+                maximumTrackTintColor={theme.colors.surfaceVariant}
+                thumbTintColor={theme.colors.primary}
+              />
+            </View>
+          </View>
 
           {/* Tema */}
           <Text variant="bodyLarge" style={[styles.themeLabel, { color: theme.colors.onBackground }]}>

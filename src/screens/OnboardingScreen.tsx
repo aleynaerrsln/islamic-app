@@ -218,8 +218,11 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const renderHeader = (showBack: boolean = true) => (
     <View style={styles.headerContainer}>
       {showBack && canGoBack ? (
-        <TouchableOpacity onPress={goBack} style={styles.headerBackButton}>
-          <Icon name="arrow-left" size={24} color="#fff" />
+        <TouchableOpacity
+          onPress={goBack}
+          style={[styles.headerBackButton, { backgroundColor: theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }]}
+        >
+          <Icon name="arrow-left" size={24} color={theme.colors.onBackground} />
         </TouchableOpacity>
       ) : (
         <View style={styles.headerBackPlaceholder} />
@@ -252,9 +255,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
       <Button
         mode="contained"
         onPress={() => setCurrentStep('location')}
-        style={[styles.button, { backgroundColor: '#FFF9C4' }]}
+        style={[styles.button, { backgroundColor: theme.dark ? '#E5E5E5' : '#2c3e50' }]}
         contentStyle={styles.buttonContent}
-        labelStyle={[styles.buttonLabel, { color: '#000' }]}
+        labelStyle={[styles.buttonLabel, { color: theme.dark ? '#1a1a1a' : '#fff' }]}
       >
         Başla
       </Button>
@@ -279,9 +282,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
       <Button
         mode="contained"
         onPress={detectLocation}
-        style={[styles.button, { backgroundColor: '#4CAF50', marginBottom: spacing.md }]}
+        style={[styles.button, { backgroundColor: theme.dark ? '#E5E5E5' : '#253240', marginBottom: spacing.md }]}
         contentStyle={styles.buttonContent}
-        labelStyle={[styles.buttonLabel, { color: '#fff' }]}
+        labelStyle={[styles.buttonLabel, { color: theme.dark ? '#1a1a1a' : '#fff' }]}
         icon="crosshairs-gps"
         loading={isDetectingLocation}
         disabled={isDetectingLocation}
@@ -291,9 +294,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
       {/* Ayırıcı */}
       <View style={styles.dividerContainer}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>veya</Text>
-        <View style={styles.dividerLine} />
+        <View style={[styles.dividerLine, { backgroundColor: theme.dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)' }]} />
+        <Text style={[styles.dividerText, { color: theme.dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }]}>veya</Text>
+        <View style={[styles.dividerLine, { backgroundColor: theme.dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)' }]} />
       </View>
 
       {/* Manuel Seçim Butonu */}
@@ -303,9 +306,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
           setSearchQuery('');
           setCurrentStep('city');
         }}
-        style={[styles.button, { backgroundColor: '#FFF9C4' }]}
+        style={[styles.button, { backgroundColor: theme.dark ? '#E5E5E5' : '#2c3e50' }]}
         contentStyle={styles.buttonContent}
-        labelStyle={[styles.buttonLabel, { color: '#000' }]}
+        labelStyle={[styles.buttonLabel, { color: theme.dark ? '#1a1a1a' : '#fff' }]}
         icon="format-list-bulleted"
       >
         Listeden Seç
@@ -321,15 +324,16 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         İl Seçin
       </Text>
 
-      <View style={styles.modernSearchContainer}>
-        <Icon name="magnify" size={20} color="rgba(255,255,255,0.5)" style={{ marginRight: 8 }} />
+      <View style={[styles.modernSearchContainer, { backgroundColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
+        <Icon name="magnify" size={20} color={theme.dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'} style={{ marginRight: 8 }} />
         <Searchbar
           placeholder="İl ara..."
           onChangeText={setSearchQuery}
           value={searchQuery}
           style={styles.modernSearchBar}
-          inputStyle={styles.modernSearchInput}
+          inputStyle={[styles.modernSearchInput, { color: theme.colors.onBackground }]}
           iconColor="transparent"
+          placeholderTextColor={theme.dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'}
         />
       </View>
 
@@ -337,7 +341,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         {filteredCities.map((city) => (
           <TouchableOpacity
             key={city.id}
-            style={styles.modernListItem}
+            style={[styles.modernListItem, { borderBottomColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]}
             onPress={() => {
               setSelectedCity(city);
               setSearchQuery('');
@@ -347,11 +351,11 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
           >
             <View style={styles.listItemContent}>
               <View style={styles.listItemIcon}>
-                <Icon name="map-marker" size={20} color="#FFF9C4" />
+                <Icon name="map-marker" size={20} color={theme.dark ? '#E5E5E5' : '#2c3e50'} />
               </View>
-              <Text style={styles.listItemText}>{city.name}</Text>
+              <Text style={[styles.listItemText, { color: theme.colors.onBackground }]}>{city.name}</Text>
             </View>
-            <Icon name="chevron-right" size={22} color="rgba(255,255,255,0.4)" />
+            <Icon name="chevron-right" size={22} color={theme.dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'} />
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -366,20 +370,21 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         İlçe Seçin
       </Text>
 
-      <View style={styles.selectedCityBadge}>
-        <Icon name="map-marker-check" size={16} color="#FFF9C4" />
-        <Text style={styles.selectedCityText}>{selectedCity?.name}</Text>
+      <View style={[styles.selectedCityBadge, { backgroundColor: theme.dark ? 'rgba(229,229,229,0.15)' : 'rgba(44,62,80,0.15)' }]}>
+        <Icon name="map-marker-check" size={16} color={theme.dark ? '#E5E5E5' : '#2c3e50'} />
+        <Text style={[styles.selectedCityText, { color: theme.dark ? '#E5E5E5' : '#2c3e50' }]}>{selectedCity?.name}</Text>
       </View>
 
-      <View style={styles.modernSearchContainer}>
-        <Icon name="magnify" size={20} color="rgba(255,255,255,0.5)" style={{ marginRight: 8 }} />
+      <View style={[styles.modernSearchContainer, { backgroundColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
+        <Icon name="magnify" size={20} color={theme.dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'} style={{ marginRight: 8 }} />
         <Searchbar
           placeholder="İlçe ara..."
           onChangeText={setSearchQuery}
           value={searchQuery}
           style={styles.modernSearchBar}
-          inputStyle={styles.modernSearchInput}
+          inputStyle={[styles.modernSearchInput, { color: theme.colors.onBackground }]}
           iconColor="transparent"
+          placeholderTextColor={theme.dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'}
         />
       </View>
 
@@ -387,7 +392,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         {filteredDistricts.map((district) => (
           <TouchableOpacity
             key={district.id}
-            style={styles.modernListItem}
+            style={[styles.modernListItem, { borderBottomColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]}
             onPress={() => {
               setSelectedDistrict(district);
               setSearchQuery('');
@@ -397,11 +402,11 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
           >
             <View style={styles.listItemContent}>
               <View style={styles.listItemIcon}>
-                <Icon name="home-city" size={20} color="#FFF9C4" />
+                <Icon name="home-city" size={20} color={theme.dark ? '#E5E5E5' : '#2c3e50'} />
               </View>
-              <Text style={styles.listItemText}>{district.name}</Text>
+              <Text style={[styles.listItemText, { color: theme.colors.onBackground }]}>{district.name}</Text>
             </View>
-            <Icon name="chevron-right" size={22} color="rgba(255,255,255,0.4)" />
+            <Icon name="chevron-right" size={22} color={theme.dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'} />
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -443,7 +448,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
           <View style={[styles.previewCard, { backgroundColor: theme.colors.surface }]}>
             {locationDisplay.isAuto && (
               <View style={styles.autoLocationBadge}>
-                <Icon name="crosshairs-gps" size={14} color="#4CAF50" />
+                <Icon name="crosshairs-gps" size={14} color="#2c3e50" />
                 <Text style={styles.autoLocationBadgeText}>Otomatik Konum</Text>
               </View>
             )}
@@ -486,9 +491,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         <Button
           mode="contained"
           onPress={handleLocationComplete}
-          style={[styles.button, { backgroundColor: '#FFF9C4' }]}
+          style={[styles.button, { backgroundColor: theme.dark ? '#E5E5E5' : '#2c3e50' }]}
           contentStyle={styles.buttonContent}
-          labelStyle={[styles.buttonLabel, { color: '#000' }]}
+          labelStyle={[styles.buttonLabel, { color: theme.dark ? '#1a1a1a' : '#fff' }]}
           disabled={(!selectedDistrict && !autoDetectedLocation) || isLoading}
       >
           Devam Et
@@ -545,9 +550,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         <Button
           mode="contained"
           onPress={requestNotificationPermission}
-          style={[styles.button, { backgroundColor: '#4CAF50', marginBottom: spacing.md }]}
+          style={[styles.button, { backgroundColor: theme.dark ? '#E5E5E5' : '#253240', marginBottom: spacing.md }]}
           contentStyle={styles.buttonContent}
-          labelStyle={[styles.buttonLabel, { color: 'white' }]}
+          labelStyle={[styles.buttonLabel, { color: theme.dark ? '#1a1a1a' : 'white' }]}
           icon="bell"
         >
           Ezan vaktinde bildirim al
@@ -556,9 +561,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         <Button
           mode="contained"
           onPress={skipNotifications}
-          style={[styles.button, { backgroundColor: '#FFF9C4' }]}
+          style={[styles.button, { backgroundColor: theme.dark ? '#E5E5E5' : '#2c3e50' }]}
           contentStyle={styles.buttonContent}
-          labelStyle={[styles.buttonLabel, { color: '#000' }]}
+          labelStyle={[styles.buttonLabel, { color: theme.dark ? '#1a1a1a' : '#fff' }]}
         >
           Daha sonra ayarla
         </Button>
@@ -593,7 +598,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
           styles.agreementCard,
           {
             backgroundColor: theme.colors.surface,
-            borderColor: privacyAccepted ? theme.colors.primary : theme.colors.outlineVariant,
+            borderColor: privacyAccepted ? '#253240' : theme.colors.outlineVariant,
           }
         ]}
         onPress={() => setPrivacyAccepted(!privacyAccepted)}
@@ -601,11 +606,11 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         <View style={[
           styles.checkbox,
           {
-            backgroundColor: privacyAccepted ? '#4CAF50' : 'transparent',
-            borderColor: privacyAccepted ? '#4CAF50' : theme.colors.outline,
+            backgroundColor: privacyAccepted ? (theme.dark ? '#E5E5E5' : '#253240') : 'transparent',
+            borderColor: privacyAccepted ? (theme.dark ? '#E5E5E5' : '#253240') : theme.colors.outline,
           }
         ]}>
-          {privacyAccepted && <Icon name="check" size={16} color="white" />}
+          {privacyAccepted && <Icon name="check" size={16} color={theme.dark ? '#1a1a1a' : 'white'} />}
         </View>
         <View style={styles.agreementContent}>
           <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
@@ -626,7 +631,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
           styles.agreementCard,
           {
             backgroundColor: theme.colors.surface,
-            borderColor: termsAccepted ? theme.colors.primary : theme.colors.outlineVariant,
+            borderColor: termsAccepted ? '#253240' : theme.colors.outlineVariant,
           }
         ]}
         onPress={() => setTermsAccepted(!termsAccepted)}
@@ -634,11 +639,11 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         <View style={[
           styles.checkbox,
           {
-            backgroundColor: termsAccepted ? '#4CAF50' : 'transparent',
-            borderColor: termsAccepted ? '#4CAF50' : theme.colors.outline,
+            backgroundColor: termsAccepted ? (theme.dark ? '#E5E5E5' : '#253240') : 'transparent',
+            borderColor: termsAccepted ? (theme.dark ? '#E5E5E5' : '#253240') : theme.colors.outline,
           }
         ]}>
-          {termsAccepted && <Icon name="check" size={16} color="white" />}
+          {termsAccepted && <Icon name="check" size={16} color={theme.dark ? '#1a1a1a' : 'white'} />}
         </View>
         <View style={styles.agreementContent}>
           <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
@@ -658,9 +663,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
       <Button
         mode="contained"
         onPress={handlePrivacyComplete}
-        style={[styles.button, { backgroundColor: '#FFF9C4' }]}
+        style={[styles.button, { backgroundColor: theme.dark ? '#E5E5E5' : '#2c3e50' }]}
         contentStyle={styles.buttonContent}
-        labelStyle={[styles.buttonLabel, { color: '#000' }]}
+        labelStyle={[styles.buttonLabel, { color: theme.dark ? '#1a1a1a' : '#fff' }]}
         disabled={!privacyAccepted || !termsAccepted}
         icon="check"
       >
@@ -728,8 +733,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
               key={step}
               style={[
                 styles.stepDot,
-                step === currentStepNumber && styles.stepDotActive,
-                step < currentStepNumber && styles.stepDotCompleted,
+                { backgroundColor: theme.dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)' },
+                step === currentStepNumber && [styles.stepDotActive, { backgroundColor: theme.dark ? '#E5E5E5' : '#2c3e50' }],
+                step < currentStepNumber && [styles.stepDotCompleted, { backgroundColor: theme.dark ? 'rgba(229,229,229,0.5)' : 'rgba(44,62,80,0.5)' }],
               ]}
             />
           ))}
@@ -823,7 +829,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xs,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   listItemContent: {
     flexDirection: 'row',
@@ -840,13 +845,11 @@ const styles = StyleSheet.create({
   },
   listItemText: {
     fontSize: 16,
-    color: '#fff',
     fontWeight: '500',
   },
   modernSearchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 12,
     paddingHorizontal: spacing.md,
     marginTop: spacing.md,
@@ -858,13 +861,12 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   modernSearchInput: {
-    color: '#fff',
   },
   selectedCityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: 'rgba(255,249,196,0.15)',
+    backgroundColor: 'rgba(44,62,80,0.15)',
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 20,
@@ -872,7 +874,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   selectedCityText: {
-    color: '#FFF9C4',
+    color: '#2c3e50',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -893,7 +895,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    backgroundColor: 'rgba(44, 62, 80, 0.15)',
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 12,
@@ -901,7 +903,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   autoLocationBadgeText: {
-    color: '#4CAF50',
+    color: '#2c3e50',
     fontSize: 12,
     fontWeight: '500',
   },
@@ -933,7 +935,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -950,14 +951,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   stepDotActive: {
     width: 24,
-    backgroundColor: '#FFF9C4',
+    backgroundColor: '#2c3e50',
   },
   stepDotCompleted: {
-    backgroundColor: 'rgba(255,249,196,0.5)',
+    backgroundColor: 'rgba(44,62,80,0.5)',
   },
   notificationPreview: {
     marginTop: spacing.xl,
@@ -1005,10 +1005,8 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   dividerText: {
-    color: 'rgba(255,255,255,0.5)',
     marginHorizontal: spacing.md,
     fontSize: 14,
   },

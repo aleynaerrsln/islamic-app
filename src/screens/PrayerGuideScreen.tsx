@@ -18,6 +18,7 @@ import {
 } from '../data/namazRehberi';
 import { spacing, borderRadius } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
+import { useSettingsStore } from '../store/settingsStore';
 
 const { width } = Dimensions.get('window');
 
@@ -25,6 +26,8 @@ type ViewMode = 'main' | 'abdest' | 'detail';
 
 export function PrayerGuideScreen() {
   const theme = useTheme();
+  const cardOpacity = useSettingsStore((state) => state.cardOpacity);
+  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
   const [expandedVakit, setExpandedVakit] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('main');
   const [selectedBolum, setSelectedBolum] = useState<NamazBolumu | null>(null);
@@ -64,7 +67,7 @@ export function PrayerGuideScreen() {
 
   // Adım kartı render
   const renderAdim = (adim: NamazAdim, index: number) => (
-    <View key={adim.id} style={styles.stepCard}>
+    <View key={adim.id} style={[styles.stepCard, { backgroundColor: cardBgColor }]}>
       <View style={styles.stepHeader}>
         <View style={styles.stepNumber}>
           <Text style={styles.stepNumberText}>{index + 1}</Text>
@@ -165,7 +168,7 @@ export function PrayerGuideScreen() {
     const isExpanded = expandedVakit === vakit.id;
 
     return (
-      <View key={vakit.id} style={styles.vakitCard}>
+      <View key={vakit.id} style={[styles.vakitCard, { backgroundColor: cardBgColor }]}>
         <TouchableOpacity
           style={[styles.vakitHeader, { borderLeftColor: vakit.renk }]}
           onPress={() => toggleVakit(vakit.id)}
@@ -235,14 +238,7 @@ export function PrayerGuideScreen() {
     <>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.headerTitle}>Namaz Rehberi</Text>
-            <Text style={styles.headerSubtitle}>
-              Adım adım namaz kılma rehberi
-            </Text>
-          </View>
-        </View>
+        <Text style={styles.headerTitle}>Namaz Rehberi</Text>
 
         {/* Abdest kartı */}
         <TouchableOpacity
@@ -310,21 +306,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 50,
+    paddingTop: 60,
     paddingHorizontal: spacing.lg,
-  },
-  headerTop: {
+    alignItems: 'center',
     marginBottom: spacing.lg,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '600',
     color: '#fff',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-    marginTop: 4,
+    textAlign: 'center',
   },
 
   // Abdest kartı
@@ -332,12 +323,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(79, 195, 247, 0.15)',
+    backgroundColor: 'rgba(79, 195, 247, 0.25)',
     padding: spacing.md,
     borderRadius: 16,
+    marginTop: spacing.lg,
     marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(79, 195, 247, 0.3)',
+    borderColor: 'rgba(79, 195, 247, 0.4)',
   },
   abdestLeft: {
     flexDirection: 'row',
@@ -387,7 +379,6 @@ const styles = StyleSheet.create({
 
   // Vakit kartı
   vakitCard: {
-    backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 16,
     marginBottom: spacing.md,
     overflow: 'hidden',
@@ -497,7 +488,7 @@ const styles = StyleSheet.create({
   // Tip kartı
   tipCard: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
     padding: spacing.md,
     borderRadius: 12,
     marginTop: spacing.sm,
@@ -594,7 +585,6 @@ const styles = StyleSheet.create({
 
   // Step card
   stepCard: {
-    backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.sm,

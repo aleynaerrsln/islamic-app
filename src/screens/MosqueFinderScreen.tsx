@@ -267,17 +267,12 @@ export function MosqueFinderScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Icon name="mosque" size={24} color="#4CAF50" />
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>Cami Bul</Text>
-            <Text style={styles.headerSubtitle}>
-              {mosques.length > 0
-                ? `${mosques.length} cami bulundu`
-                : 'Yakındaki camiler aranıyor...'}
-            </Text>
-          </View>
-        </View>
+        <Text style={styles.headerTitle}>Cami Bul</Text>
+        <Text style={styles.headerSubtitle}>
+          {mosques.length > 0
+            ? `${mosques.length} cami bulundu`
+            : 'Yakındaki camiler aranıyor...'}
+        </Text>
       </View>
 
       {/* Hata mesajı */}
@@ -443,19 +438,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.85)',
     borderRadius: 16,
     padding: spacing.md,
-  },
-  headerContent: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-  },
-  headerText: {
-    flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '600',
     color: '#fff',
+    textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 13,

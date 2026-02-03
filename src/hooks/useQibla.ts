@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Platform } from 'react-native';
 import { Magnetometer } from 'expo-sensors';
-import { getQiblaDirection, calculateDistanceToMecca } from '../api/aladhan';
+import { getQiblaDirection, calculateDistanceToMecca, calculateQiblaDirection } from '../api/aladhan';
 import type { Location } from '../types';
 
 interface UseQiblaResult {
-  qiblaDirection: number; // Kıble yönü (derece)
-  compassHeading: number; // Pusula yönü (derece)
+  qiblaDirection: number; // Kıble yönü (derece, gerçek kuzeyden)
+  compassHeading: number; // Pusula yönü (derece, gerçek kuzeyden)
   qiblaAngle: number; // Gösterilecek açı (qiblaDirection - compassHeading)
   distanceToMecca: number; // Mekke'ye mesafe (km)
   isLoading: boolean;
@@ -15,11 +15,33 @@ interface UseQiblaResult {
 }
 
 // Low-pass filter katsayısı (0-1 arası, düşük = daha yumuşak)
-const SMOOTHING_FACTOR = 0.15;
+const SMOOTHING_FACTOR = 0.1;
+
+// Manyetik sapma (declination) hesaplama
+// Basitleştirilmiş World Magnetic Model (WMM) yaklaşımı
+// Türkiye için yaklaşık 5-6 derece doğu
+function getMagneticDeclination(latitude: number, longitude: number): number {
+  // Basitleştirilmiş hesaplama - Türkiye ve çevresi için
+  // Gerçek değerler için NOAA WMM API kullanılabilir
+  // Türkiye'nin büyük bölümü için declination yaklaşık 5-6 derece doğudur (pozitif)
+
+  // Basit lineer interpolasyon (Avrupa-Ortadoğu bölgesi için)
+  // Batı Avrupa: ~0°, Doğu Türkiye: ~6°
+  const baseDeclination = 3.5; // Orta değer
+  const longitudeFactor = (longitude - 30) * 0.1; // Boylama göre ayarlama
+
+  let declination = baseDeclination + longitudeFactor;
+
+  // Sınırla
+  declination = Math.max(-5, Math.min(15, declination));
+
+  return declination;
+}
 
 export function useQibla(location: Location | null): UseQiblaResult {
   const [qiblaDirection, setQiblaDirection] = useState<number>(0);
   const [compassHeading, setCompassHeading] = useState<number>(0);
+  const [magneticDeclination, setMagneticDeclination] = useState<number>(0);
   const [distanceToMecca, setDistanceToMecca] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +51,7 @@ export function useQibla(location: Location | null): UseQiblaResult {
   const prevHeading = useRef<number>(0);
   const calibrationCount = useRef<number>(0);
 
-  // Açı farkını hesapla (kısa yoldan)
+  // Açı farkını hesapla (kısa yoldan, -180 ile +180 arası)
   const angleDifference = useCallback((a: number, b: number): number => {
     let diff = a - b;
     while (diff > 180) diff -= 360;
@@ -37,8 +59,14 @@ export function useQibla(location: Location | null): UseQiblaResult {
     return diff;
   }, []);
 
-  // Low-pass filter uygula
+  // Gelişmiş low-pass filter uygula
   const smoothHeading = useCallback((newHeading: number): number => {
+    // Önceki değer yoksa direkt kullan
+    if (prevHeading.current === 0 && calibrationCount.current < 3) {
+      prevHeading.current = newHeading;
+      return newHeading;
+    }
+
     const diff = angleDifference(newHeading, prevHeading.current);
     let smoothed = prevHeading.current + diff * SMOOTHING_FACTOR;
 
@@ -51,16 +79,22 @@ export function useQibla(location: Location | null): UseQiblaResult {
   }, [angleDifference]);
 
   // Magnetometer verilerini compass heading'e çevir
-  const calculateHeading = useCallback((x: number, y: number, z: number): number => {
-    // Telefon düz tutulduğunda (ekran yukarı bakacak şekilde)
-    // Manyetik Kuzey'e göre açıyı hesapla
+  // Formül: Telefon düz tutulduğunda (ekran yukarı), telefonun üstü nereyi gösteriyor
+  const calculateHeading = useCallback((x: number, y: number, _z: number): number => {
+    // Standart pusula formülü
+    // atan2(-x, y) telefonun üst kısmının manyetik kuzeyden saatı yönünde açısını verir
+    // Not: Expo Magnetometer koordinat sistemi:
+    // - x: sağa doğru pozitif
+    // - y: yukarı (telefonun üstüne) doğru pozitif
+    // - z: ekrandan dışarı doğru pozitif
+
     let heading: number;
 
     if (Platform.OS === 'ios') {
-      // iOS için hesaplama
-      heading = Math.atan2(x, y) * (180 / Math.PI);
+      // iOS: y ekseni telefonun üstünü gösterir
+      heading = Math.atan2(-x, y) * (180 / Math.PI);
     } else {
-      // Android için hesaplama
+      // Android: y ekseni telefonun üstünü gösterir
       heading = Math.atan2(-x, y) * (180 / Math.PI);
     }
 
@@ -72,27 +106,34 @@ export function useQibla(location: Location | null): UseQiblaResult {
     return heading;
   }, []);
 
-  // Kıble yönünü API'den al
+  // Kıble yönünü API'den al ve manyetik sapmayı hesapla
   useEffect(() => {
     if (!location) return;
 
     const fetchQiblaDirection = async () => {
       setIsLoading(true);
       try {
+        // Önce API'den dene
         const response = await getQiblaDirection(location.latitude, location.longitude);
         setQiblaDirection(response.data.direction);
-
-        // Mekke'ye mesafeyi hesapla
-        const distance = calculateDistanceToMecca(location);
-        setDistanceToMecca(distance);
-
         setError(null);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Kıble yönü alınamadı';
-        setError(errorMessage);
-      } finally {
-        setIsLoading(false);
+        // API başarısız olursa yerel hesaplama kullan
+        console.log('API başarısız, yerel hesaplama kullanılıyor');
+        const localQibla = calculateQiblaDirection(location.latitude, location.longitude);
+        setQiblaDirection(localQibla);
+        setError(null); // Yerel hesaplama başarılı
       }
+
+      // Manyetik sapmayı hesapla
+      const declination = getMagneticDeclination(location.latitude, location.longitude);
+      setMagneticDeclination(declination);
+
+      // Mekke'ye mesafeyi hesapla
+      const distance = calculateDistanceToMecca(location);
+      setDistanceToMecca(distance);
+
+      setIsLoading(false);
     };
 
     fetchQiblaDirection();
@@ -115,14 +156,26 @@ export function useQibla(location: Location | null): UseQiblaResult {
         Magnetometer.setUpdateInterval(50);
 
         subscription = Magnetometer.addListener((data) => {
-          const rawHeading = calculateHeading(data.x, data.y, data.z);
-          const smoothedHeading = smoothHeading(rawHeading);
+          // Ham manyetik başlık hesapla
+          const rawMagneticHeading = calculateHeading(data.x, data.y, data.z);
 
-          setCompassHeading(smoothedHeading);
+          // Low-pass filter uygula
+          const smoothedMagneticHeading = smoothHeading(rawMagneticHeading);
+
+          // Manyetik sapmayı ekleyerek gerçek kuzeye göre başlık hesapla
+          // Manyetik sapma pozitifse (doğu), gerçek kuzey manyetik kuzeyden batıdadır
+          // Bu yüzden manyetik başlığa ekliyoruz
+          let trueHeading = smoothedMagneticHeading + magneticDeclination;
+
+          // 0-360 aralığına normalize et
+          if (trueHeading < 0) trueHeading += 360;
+          if (trueHeading >= 360) trueHeading -= 360;
+
+          setCompassHeading(trueHeading);
 
           // Birkaç okuma sonrası kalibre edilmiş say
           calibrationCount.current += 1;
-          if (calibrationCount.current > 10) {
+          if (calibrationCount.current > 20) {
             setIsCalibrated(true);
           }
         });
@@ -138,7 +191,7 @@ export function useQibla(location: Location | null): UseQiblaResult {
         subscription.remove();
       }
     };
-  }, [calculateHeading, smoothHeading]);
+  }, [calculateHeading, smoothHeading, magneticDeclination]);
 
   // Kıble açısını hesapla (pusula yönüne göre)
   const qiblaAngle = (qiblaDirection - compassHeading + 360) % 360;

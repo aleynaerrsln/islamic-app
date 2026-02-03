@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { spacing, borderRadius } from '../theme';
+import { useSettingsStore } from '../store/settingsStore';
 import type { PrayerTimes } from '../types';
 
 // Namaz vakti ikonları
@@ -45,6 +46,8 @@ export function PrayerTimesHorizontal({
   onExpandPress
 }: PrayerTimesHorizontalProps) {
   const theme = useTheme();
+  const cardOpacity = useSettingsStore((state) => state.cardOpacity);
+  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
 
   const prayerOrder: (keyof PrayerTimes)[] = [
     'Fajr',
@@ -61,7 +64,7 @@ export function PrayerTimesHorizontal({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: 'rgba(0,0,0,0.4)' }]}>
+    <View style={[styles.container, { backgroundColor: cardBgColor }]}>
       {/* Geri Sayım */}
       {nextPrayer && timeToNextPrayer && (
         <View style={styles.countdownContainer}>

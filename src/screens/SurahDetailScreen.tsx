@@ -12,6 +12,7 @@ import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { getSurahWithTranslation } from '../api/quran';
 import { spacing, borderRadius } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
+import { useSettingsStore } from '../store/settingsStore';
 
 // Türkçe sure isimleri
 const SURAH_NAMES_TR: { [key: number]: string } = {
@@ -119,6 +120,8 @@ type RouteParams = {
 
 export function SurahDetailScreen() {
   const theme = useTheme();
+  const cardOpacity = useSettingsStore((state) => state.cardOpacity);
+  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
   const navigation = useNavigation();
   const route = useRoute<RouteProp<RouteParams, 'SurahDetail'>>();
   const { surahNumber } = route.params;
@@ -171,7 +174,7 @@ export function SurahDetailScreen() {
     if (surahNumber === 9 || surahNumber === 1) return null;
 
     return (
-      <View style={[styles.bismillahContainer, { backgroundColor: 'rgba(0,0,0,0.3)' }]}>
+      <View style={[styles.bismillahContainer, { backgroundColor: cardBgColor }]}>
         <Text style={[styles.bismillahText, { fontSize: fontSize + 2 }]}>
           بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
         </Text>
@@ -196,7 +199,7 @@ export function SurahDetailScreen() {
     ).join(' ');
 
     return (
-      <View style={[styles.fullSurahContainer, { backgroundColor: 'rgba(0,0,0,0.35)' }]}>
+      <View style={[styles.fullSurahContainer, { backgroundColor: cardBgColor }]}>
         {/* Tıklanabilir başlık */}
         <TouchableOpacity
           style={styles.collapsibleHeader}
@@ -248,7 +251,7 @@ export function SurahDetailScreen() {
 
   // Tek tek ayetler
   const renderAyahItem = ({ item }: { item: Ayah }) => (
-    <View style={[styles.ayahContainer, { backgroundColor: 'rgba(0,0,0,0.25)' }]}>
+    <View style={[styles.ayahContainer, { backgroundColor: cardBgColor }]}>
       {/* Ayet numarası */}
       <View style={styles.ayahHeader}>
         <View style={[styles.ayahNumberBadge, { backgroundColor: theme.colors.primary }]}>
@@ -291,7 +294,7 @@ export function SurahDetailScreen() {
   const renderHeader = () => (
     <View style={styles.headerContent}>
       {/* Sure başlık kartı */}
-      <View style={[styles.surahHeader, { backgroundColor: 'rgba(0,0,0,0.4)' }]}>
+      <View style={[styles.surahHeader, { backgroundColor: cardBgColor }]}>
         <Text style={styles.surahArabicName}>{surahInfo?.name}</Text>
         <Text style={styles.surahTurkishName}>
           {SURAH_NAMES_TR[surahNumber] || surahInfo?.englishName} Suresi
@@ -312,7 +315,7 @@ export function SurahDetailScreen() {
       </View>
 
       {/* Font boyutu kontrolleri */}
-      <View style={styles.fontControls}>
+      <View style={[styles.fontControls, { backgroundColor: cardBgColor }]}>
         <Text style={[styles.fontLabel, { color: 'rgba(255,255,255,0.7)' }]}>
           Yazı Boyutu
         </Text>
@@ -480,7 +483,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: borderRadius.md,
   },
   fontLabel: {

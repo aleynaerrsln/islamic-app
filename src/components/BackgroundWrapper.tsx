@@ -28,10 +28,10 @@ export function BackgroundWrapper({ children }: BackgroundWrapperProps) {
     return null;
   }, [background.type, background.colorId]);
 
-  // Overlay rengi (tema + saydamlık)
+  // Overlay rengi (sadece koyu temada uygulanır, açık temada overlay yok)
   const overlayColor = theme.dark
     ? `rgba(18, 18, 18, ${background.opacity})`
-    : `rgba(255, 255, 255, ${background.opacity})`;
+    : 'transparent';
 
   // Düz renk arka plan
   if (background.type === 'color' && selectedColor) {

@@ -30,7 +30,8 @@ export const DIYANET_DATES: YearlyIslamicDates = {
     { name: 'Kurban Bayramı', nameEn: 'Eid al-Adha', date: '2025-06-06', type: 'bayram', icon: 'sheep', color: '#FF9800' },
   ],
   2026: [
-    // Kandiller
+    // Kandiller (Diyanet 2026 takvimi)
+    { name: 'Regaib Kandili', nameEn: 'Ragaib', date: '2026-01-08', type: 'kandil', icon: 'candle', color: '#00BCD4' },
     { name: 'Miraç Kandili', nameEn: 'Isra and Miraj', date: '2026-01-15', type: 'kandil', icon: 'stairs-up', color: '#3F51B5' },
     { name: 'Berat Kandili', nameEn: 'Mid-Shaban', date: '2026-02-02', type: 'kandil', icon: 'book-open-variant', color: '#009688' },
     { name: 'Kadir Gecesi', nameEn: 'Laylat al-Qadr', date: '2026-03-16', type: 'kandil', icon: 'weather-night', color: '#FFD700' },
@@ -73,17 +74,24 @@ export const DIYANET_DATES: YearlyIslamicDates = {
 // Türkçe ay isimleri
 const TURKISH_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 
-// Tarihi Türkçe formata çevir
+// Tarihi Türkçe formata çevir (timezone-safe)
 export function formatDateTurkish(dateStr: string): string {
-  const date = new Date(dateStr);
-  const day = date.getDate();
-  const month = TURKISH_MONTHS[date.getMonth()];
-  return `${day} ${month}`;
+  // YYYY-MM-DD formatından parse et (timezone sorununu önle)
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return `${day} ${TURKISH_MONTHS[month - 1]}`;
 }
 
 // Belirli bir yıl için tüm dini günleri getir
 export function getIslamicDatesForYear(year: number): IslamicEvent[] | null {
   return DIYANET_DATES[year] || null;
+}
+
+// Yerel tarihi YYYY-MM-DD formatına çevir (timezone-safe)
+function getLocalDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 // Bugünden sonraki en yakın etkinliği bul
@@ -93,7 +101,8 @@ export function getUpcomingEvents(today: Date = new Date()): {
   kandil: IslamicEvent | null;
 } {
   const currentYear = today.getFullYear();
-  const todayStr = today.toISOString().split('T')[0];
+  // Yerel tarih kullan (UTC değil)
+  const todayStr = getLocalDateString(today);
 
   let ramadan: IslamicEvent | null = null;
   let bayram: IslamicEvent | null = null;
@@ -107,6 +116,7 @@ export function getUpcomingEvents(today: Date = new Date()): {
     if (!events) continue;
 
     for (const event of events) {
+      // Geçmiş tarihleri atla (bugünü dahil et, bugün gösterilecek)
       if (event.date < todayStr) continue;
 
       if (event.type === 'ramadan' && !ramadan) {
@@ -127,14 +137,17 @@ export function getUpcomingEvents(today: Date = new Date()): {
   return { ramadan, bayram, kandil };
 }
 
-// Gün farkını hesapla
+// Gün farkını hesapla (timezone-safe)
 export function calculateDaysUntil(targetDateStr: string, today: Date = new Date()): number {
-  const targetDate = new Date(targetDateStr);
-  targetDate.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
+  // Target date'i parse et (YYYY-MM-DD formatında)
+  const [year, month, day] = targetDateStr.split('-').map(Number);
+  const targetDate = new Date(year, month - 1, day, 0, 0, 0, 0);
 
-  const diffTime = targetDate.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  // Bugünün yerel tarihini al
+  const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+
+  const diffTime = targetDate.getTime() - todayLocal.getTime();
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
 }
 
 // Ramazan ayında mıyız kontrol et
@@ -148,6 +161,7 @@ export function isCurrentlyRamadan(today: Date = new Date()): boolean {
 
   if (!ramadanStart || !ramadanBayram) return false;
 
-  const todayStr = today.toISOString().split('T')[0];
+  // Yerel tarih kullan (UTC değil)
+  const todayStr = getLocalDateString(today);
   return todayStr >= ramadanStart.date && todayStr < ramadanBayram.date;
 }

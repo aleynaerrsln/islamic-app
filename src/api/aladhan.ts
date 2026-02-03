@@ -160,18 +160,19 @@ export async function getNextHijriHoliday(): Promise<{ data: any }> {
 
 /**
  * Mekke'ye olan mesafeyi hesaplar (km)
+ * Kabe koordinatları: Google Qibla Finder resmi koordinatları
  */
 export function calculateDistanceToMecca(location: Location): number {
-  const mecca = { latitude: 21.4225, longitude: 39.8262 };
+  const kaaba = { latitude: 21.4224779, longitude: 39.8251832 };
 
   const R = 6371; // Dünya'nın yarıçapı (km)
-  const dLat = toRad(mecca.latitude - location.latitude);
-  const dLon = toRad(mecca.longitude - location.longitude);
+  const dLat = toRad(kaaba.latitude - location.latitude);
+  const dLon = toRad(kaaba.longitude - location.longitude);
 
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(location.latitude)) *
-      Math.cos(toRad(mecca.latitude)) *
+      Math.cos(toRad(kaaba.latitude)) *
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2);
 
@@ -183,4 +184,36 @@ export function calculateDistanceToMecca(location: Location): number {
 
 function toRad(deg: number): number {
   return deg * (Math.PI / 180);
+}
+
+function toDeg(rad: number): number {
+  return rad * (180 / Math.PI);
+}
+
+/**
+ * Kıble yönünü yerel olarak hesaplar (Great Circle formülü)
+ * Kabe koordinatları: Google Qibla Finder resmi koordinatları
+ * @param latitude Kullanıcının enlemi
+ * @param longitude Kullanıcının boylamı
+ * @returns Kıble yönü (0-360 derece, kuzeye göre saat yönünde)
+ */
+export function calculateQiblaDirection(latitude: number, longitude: number): number {
+  const kaaba = { latitude: 21.4224779, longitude: 39.8251832 };
+
+  const lat1 = toRad(latitude);
+  const lat2 = toRad(kaaba.latitude);
+  const deltaLon = toRad(kaaba.longitude - longitude);
+
+  // Büyük daire (great circle) formülü
+  const y = Math.sin(deltaLon);
+  const x = Math.cos(lat1) * Math.tan(lat2) - Math.sin(lat1) * Math.cos(deltaLon);
+
+  let qibla = toDeg(Math.atan2(y, x));
+
+  // 0-360 aralığına normalize et
+  if (qibla < 0) {
+    qibla += 360;
+  }
+
+  return qibla;
 }

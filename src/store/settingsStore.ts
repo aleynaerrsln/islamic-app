@@ -18,6 +18,7 @@ interface SettingsState extends Settings {
   setBackgroundColor: (colorId: string) => void;
   setBackgroundImage: (imageId: string) => void;
   setBackgroundOpacity: (opacity: number) => void;
+  setCardOpacity: (opacity: number) => void;
   resetSettings: () => void;
 }
 
@@ -38,6 +39,7 @@ const defaultSettings: Settings = {
   location: null,
   locationMode: 'auto',
   background: defaultBackground,
+  cardOpacity: 0.4, // Kartların varsayılan arka plan opaklığı
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -88,6 +90,9 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           background: { ...state.background, opacity },
         })),
+
+      setCardOpacity: (opacity) =>
+        set({ cardOpacity: opacity }),
 
       resetSettings: () =>
         set(defaultSettings),

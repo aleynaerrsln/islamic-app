@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { spacing, borderRadius } from '../theme';
+import { useSettingsStore } from '../store/settingsStore';
 
 // ===== GÜNÜN AYETİ =====
 interface DailyAyahCardProps {
@@ -13,8 +14,12 @@ interface DailyAyahCardProps {
 }
 
 export function DailyAyahCard({ arabicText, turkishText, surahName, ayahNumber }: DailyAyahCardProps) {
+  const theme = useTheme();
+  const cardOpacity = useSettingsStore((state) => state.cardOpacity);
+  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
+
   return (
-    <View style={[styles.card, { borderLeftColor: '#4CAF50' }]}>
+    <View style={[styles.card, { borderLeftColor: '#4CAF50', backgroundColor: cardBgColor }]}>
       <View style={styles.header}>
         <View style={[styles.iconContainer, { backgroundColor: 'rgba(76, 175, 80, 0.2)' }]}>
           <Icon name="book-open-page-variant" size={24} color="#4CAF50" />
@@ -47,8 +52,12 @@ interface DailyHadisCardProps {
 }
 
 export function DailyHadisCard({ hadisText, arabicText, source, topic }: DailyHadisCardProps) {
+  const theme = useTheme();
+  const cardOpacity = useSettingsStore((state) => state.cardOpacity);
+  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
+
   return (
-    <View style={[styles.card, { borderLeftColor: '#FF9800' }]}>
+    <View style={[styles.card, { borderLeftColor: '#FF9800', backgroundColor: cardBgColor }]}>
       <View style={styles.header}>
         <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 152, 0, 0.2)' }]}>
           <Icon name="message-text" size={24} color="#FF9800" />
@@ -86,8 +95,12 @@ interface DailyEsmaCardProps {
 }
 
 export function DailyEsmaCard({ number, arabic, turkish, meaning, color, onExpandPress }: DailyEsmaCardProps) {
+  const theme = useTheme();
+  const cardOpacity = useSettingsStore((state) => state.cardOpacity);
+  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
+
   return (
-    <View style={[styles.card, { borderLeftColor: color }]}>
+    <View style={[styles.card, { borderLeftColor: color, backgroundColor: cardBgColor }]}>
       <View style={styles.header}>
         <View style={[styles.iconContainer, { backgroundColor: `${color}33` }]}>
           <Icon name="star-four-points" size={24} color={color} />
@@ -123,7 +136,6 @@ const styles = StyleSheet.create({
   card: {
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.4)',
     borderRadius: borderRadius.md,
     borderLeftWidth: 4,
     padding: spacing.md,

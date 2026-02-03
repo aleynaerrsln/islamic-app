@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { spacing, borderRadius } from '../theme';
+import { useSettingsStore } from '../store/settingsStore';
 import {
   getUpcomingEvents,
   calculateDaysUntil,
@@ -21,6 +22,9 @@ interface CountdownInfo {
 }
 
 export function HolidayCountdown() {
+  const theme = useTheme();
+  const cardOpacity = useSettingsStore((state) => state.cardOpacity);
+  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
   const [ramadanInfo, setRamadanInfo] = useState<CountdownInfo | null>(null);
   const [bayramInfo, setBayramInfo] = useState<CountdownInfo | null>(null);
   const [kandilInfo, setKandilInfo] = useState<CountdownInfo | null>(null);
@@ -75,20 +79,24 @@ export function HolidayCountdown() {
     }
   };
 
-  const renderCountdownCard = (info: CountdownInfo, message: string) => (
-    <View style={[styles.container, { borderLeftColor: info.color }]}>
+  const renderCountdownCard = (info: CountdownInfo, activeMessage: string) => (
+    <View style={[styles.container, { borderLeftColor: info.color, backgroundColor: cardBgColor }]}>
       <View style={[styles.iconContainer, { backgroundColor: `${info.color}20` }]}>
         <Icon name={info.icon} size={26} color={info.color} />
       </View>
       <View style={styles.textContainer}>
         <View style={styles.titleRow}>
-          <Text style={styles.holidayName}>{info.name}</Text>
+          {info.isActive ? (
+            <Text style={styles.holidayName}>Bugün {info.name}</Text>
+          ) : (
+            <Text style={styles.holidayName}>{info.name}</Text>
+          )}
           {info.gregorianDateStr && !info.isActive && (
             <Text style={styles.dateText}>{info.gregorianDateStr}</Text>
           )}
         </View>
         {info.isActive ? (
-          <Text style={[styles.activeText, { color: info.color }]}>{message}</Text>
+          <Text style={[styles.activeText, { color: info.color }]}>{activeMessage}</Text>
         ) : (
           <View style={styles.countdownRow}>
             <Text style={[styles.daysNumber, { color: info.color }]}>
@@ -127,7 +135,6 @@ const styles = StyleSheet.create({
   container: {
     marginHorizontal: spacing.md,
     marginTop: spacing.xs,
-    backgroundColor: 'rgba(0,0,0,0.4)',
     borderRadius: borderRadius.md,
     borderLeftWidth: 4,
     padding: spacing.sm,

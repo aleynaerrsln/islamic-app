@@ -14,6 +14,7 @@ import { Text, useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { spacing, borderRadius } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
+import { useSettingsStore } from '../store/settingsStore';
 import {
   HADITHS,
   HADITH_CATEGORIES,
@@ -28,6 +29,8 @@ const { width } = Dimensions.get('window');
 
 export function HadithScreen() {
   const theme = useTheme();
+  const cardOpacity = useSettingsStore((state) => state.cardOpacity);
+  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
   const [selectedCategory, setSelectedCategory] = useState<HadithCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -193,7 +196,7 @@ export function HadithScreen() {
 
     return (
       <TouchableOpacity
-        style={styles.hadithCard}
+        style={[styles.hadithCard, { backgroundColor: cardBgColor }]}
         activeOpacity={0.9}
         onLongPress={() => shareHadith(item)}
       >
@@ -237,14 +240,10 @@ export function HadithScreen() {
   // Header bileşeni
   const renderHeader = () => (
     <View style={styles.header}>
-      {/* Başlık ve arama */}
+      {/* Başlık */}
       <View style={styles.headerTop}>
-        <View>
-          <Text style={styles.headerTitle}>Hadis-i Şerifler</Text>
-          <Text style={styles.headerSubtitle}>
-            {HADITHS.length} Sahih Hadis
-          </Text>
-        </View>
+        <View style={{ width: 44 }} />
+        <Text style={styles.headerTitle}>Hadisler</Text>
         <TouchableOpacity
           style={styles.searchToggle}
           onPress={() => setShowSearch(!showSearch)}
@@ -325,19 +324,15 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '600',
     color: '#fff',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-    marginTop: 4,
+    textAlign: 'center',
   },
   searchToggle: {
     width: 44,
@@ -494,7 +489,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
-    backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 16,
     overflow: 'hidden',
   },

@@ -4,7 +4,7 @@ import { Text, ActivityIndicator, useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useLocation } from '../hooks/useLocation';
 import { usePrayerTimes } from '../hooks/usePrayerTimes';
-import { useNotifications } from '../hooks/useNotifications';
+import { useNotifications, scheduleRamadanMotivationNotifications, scheduleIftarReminderNotification, scheduleEidNotifications } from '../hooks/useNotifications';
 import { useSettingsStore } from '../store/settingsStore';
 import { PrayerTimesList } from '../components/PrayerTimeCard';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
@@ -46,7 +46,8 @@ export function HomeScreen() {
   const { hadis: dailyHadis } = getContextAwareDailyHadis();
   const { esma: dailyEsma } = getContextAwareDailyEsma();
 
-  const { calculationMethod, setLocation: saveLocation } = useSettingsStore();
+  const { calculationMethod, setLocation: saveLocation, cardOpacity } = useSettingsStore();
+  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
 
   // Konum değiştiğinde kaydet ve yenile
   const handleLocationSelect = async (newLocation: Location) => {
@@ -68,6 +69,12 @@ export function HomeScreen() {
   useEffect(() => {
     if (prayerTimes) {
       schedulePrayerNotifications(prayerTimes);
+      // Ramazan motivasyon bildirimlerini planla
+      scheduleRamadanMotivationNotifications();
+      // İftara 1 saat kala hatırlatma (Maghrib = iftar vakti)
+      scheduleIftarReminderNotification(prayerTimes.Maghrib);
+      // Bayram bildirimlerini planla
+      scheduleEidNotifications();
     }
   }, [prayerTimes]);
 
@@ -164,7 +171,7 @@ export function HomeScreen() {
       >
         {/* Konum Header */}
         <TouchableOpacity
-          style={styles.locationHeader}
+          style={[styles.locationHeader, { backgroundColor: cardBgColor }]}
           onPress={() => setLocationModalVisible(true)}
           activeOpacity={0.7}
         >
@@ -268,7 +275,6 @@ const styles = StyleSheet.create({
   locationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
     marginHorizontal: spacing.md,
     marginTop: 50,
     marginBottom: spacing.xs,

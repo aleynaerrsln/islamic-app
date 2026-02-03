@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,32 +6,67 @@ import {
   TouchableOpacity,
   Dimensions,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { spacing } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
+import { useSettingsStore } from '../store/settingsStore';
+import { getMonthlyCalendar } from '../api/aladhan';
 
 const { width } = Dimensions.get('window');
 
-// 2025 Ramazan tarihleri (Hicri 1446)
-const RAMADAN_2025 = {
-  start: new Date('2025-02-19T00:00:00'),
-  end: new Date('2025-03-20T23:59:59'),
-  year: 2025,
-  hijriYear: 1446,
+// Gün isimleri (Türkçe)
+const DAY_NAMES: { [key: string]: string } = {
+  'Monday': 'Pazartesi',
+  'Tuesday': 'Salı',
+  'Wednesday': 'Çarşamba',
+  'Thursday': 'Perşembe',
+  'Friday': 'Cuma',
+  'Saturday': 'Cumartesi',
+  'Sunday': 'Pazar',
 };
 
-// Örnek imsakiye (İstanbul için - gerçek uygulamada API'den alınmalı)
-const SAMPLE_IMSAKIYE = {
-  imsak: '05:45',
-  gunes: '07:10',
-  ogle: '13:15',
-  ikindi: '16:30',
-  aksam: '19:05',
-  yatsi: '20:25',
+// Ay isimleri (Türkçe)
+const MONTH_NAMES: { [key: string]: string } = {
+  'January': 'Ocak',
+  'February': 'Şubat',
+  'March': 'Mart',
+  'April': 'Nisan',
+  'May': 'Mayıs',
+  'June': 'Haziran',
+  'July': 'Temmuz',
+  'August': 'Ağustos',
+  'September': 'Eylül',
+  'October': 'Ekim',
+  'November': 'Kasım',
+  'December': 'Aralık',
 };
+
+// 2026 Ramazan tarihleri (Hicri 1447)
+// Ramazan: 19 Şubat - 19 Mart 2026 (Diyanet takvimi)
+// Bayram: 20 Mart - 22 Mart 2026
+const RAMADAN_2026 = {
+  start: new Date('2026-02-19T00:00:00'),
+  end: new Date('2026-03-19T23:59:59'),
+  year: 2026,
+  hijriYear: 1447,
+};
+
+// İmsakiye veri tipi
+interface ImsakiyeDay {
+  day: number;
+  hicri: string;
+  miladi: string;
+  imsak: string;
+  gunes: string;
+  ogle: string;
+  ikindi: string;
+  aksam: string;
+  yatsi: string;
+}
 
 // Ramazan duaları
 const RAMADAN_DUAS = [
@@ -107,12 +142,80 @@ const TERAVIH_STEPS = [
 ];
 
 export function RamadanScreen() {
+  const theme = useTheme();
+  const { cardOpacity, location, calculationMethod } = useSettingsStore();
+  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
   const [currentTime, setCurrentTime] = useState(new Date());
   const [fastingRecord, setFastingRecord] = useState<FastingRecord>({});
   const [showDuaModal, setShowDuaModal] = useState(false);
   const [selectedDua, setSelectedDua] = useState<typeof RAMADAN_DUAS[0] | null>(null);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [showTeravihModal, setShowTeravihModal] = useState(false);
+  const [showImsakiyeModal, setShowImsakiyeModal] = useState(false);
+  const [imsakiyeData, setImsakiyeData] = useState<ImsakiyeDay[]>([]);
+  const [imsakiyeLoading, setImsakiyeLoading] = useState(false);
+  const [todayTimes, setTodayTimes] = useState<any>(null);
+
+  // İmsakiye verilerini API'den çek
+  const fetchImsakiye = useCallback(async () => {
+    if (!location) return;
+
+    setImsakiyeLoading(true);
+    try {
+      // Şubat ve Mart ayları için verileri çek (Ramazan iki ayı kapsıyor)
+      const [febData, marData] = await Promise.all([
+        getMonthlyCalendar(2026, 2, location.latitude, location.longitude, calculationMethod),
+        getMonthlyCalendar(2026, 3, location.latitude, location.longitude, calculationMethod),
+      ]);
+
+      const allDays = [...febData.data, ...marData.data];
+
+      // Ramazan günlerini filtrele (Hicri 9. ay = Ramazan)
+      const ramadanDays = allDays.filter((day: any) =>
+        day.date.hijri.month.number === 9
+      );
+
+      // İmsakiye formatına dönüştür
+      const formattedImsakiye: ImsakiyeDay[] = ramadanDays.map((day: any) => {
+        const gregorianDate = day.date.gregorian;
+        const hijriDate = day.date.hijri;
+        const timings = day.timings;
+
+        // Gün ve ay isimlerini Türkçeye çevir
+        const dayName = DAY_NAMES[gregorianDate.weekday.en] || gregorianDate.weekday.en;
+        const monthName = MONTH_NAMES[gregorianDate.month.en] || gregorianDate.month.en;
+
+        return {
+          day: parseInt(hijriDate.day),
+          hicri: `${hijriDate.day} Ramazan ${hijriDate.year}`,
+          miladi: `${gregorianDate.day} ${monthName} ${gregorianDate.year} ${dayName}`,
+          imsak: timings.Imsak?.split(' ')[0] || timings.Fajr?.split(' ')[0] || '--:--',
+          gunes: timings.Sunrise?.split(' ')[0] || '--:--',
+          ogle: timings.Dhuhr?.split(' ')[0] || '--:--',
+          ikindi: timings.Asr?.split(' ')[0] || '--:--',
+          aksam: timings.Maghrib?.split(' ')[0] || '--:--',
+          yatsi: timings.Isha?.split(' ')[0] || '--:--',
+        };
+      });
+
+      setImsakiyeData(formattedImsakiye);
+
+      // Bugünün vakitlerini ayarla
+      const today = new Date();
+      const todayStr = `${today.getDate()}-${today.getMonth() + 1}-${today.getFullYear()}`;
+      const todayData = allDays.find((day: any) => {
+        const d = day.date.gregorian;
+        return `${d.day}-${d.month.number}-${d.year}` === todayStr;
+      });
+      if (todayData) {
+        setTodayTimes(todayData.timings);
+      }
+    } catch (error) {
+      console.error('İmsakiye verileri alınamadı:', error);
+    } finally {
+      setImsakiyeLoading(false);
+    }
+  }, [location, calculationMethod]);
 
   // Her saniye güncelle
   useEffect(() => {
@@ -122,6 +225,13 @@ export function RamadanScreen() {
     return () => clearInterval(timer);
   }, []);
 
+  // Konum değiştiğinde imsakiye verilerini çek
+  useEffect(() => {
+    if (location) {
+      fetchImsakiye();
+    }
+  }, [location, fetchImsakiye]);
+
   // Oruç kayıtlarını yükle
   useEffect(() => {
     loadFastingRecord();
@@ -129,7 +239,7 @@ export function RamadanScreen() {
 
   const loadFastingRecord = async () => {
     try {
-      const stored = await AsyncStorage.getItem('fastingRecord2025');
+      const stored = await AsyncStorage.getItem('fastingRecord2026');
       if (stored) {
         setFastingRecord(JSON.parse(stored));
       }
@@ -140,7 +250,7 @@ export function RamadanScreen() {
 
   const saveFastingRecord = async (record: FastingRecord) => {
     try {
-      await AsyncStorage.setItem('fastingRecord2025', JSON.stringify(record));
+      await AsyncStorage.setItem('fastingRecord2026', JSON.stringify(record));
     } catch (error) {
       console.log('Oruç kaydı kaydedilemedi');
     }
@@ -155,8 +265,8 @@ export function RamadanScreen() {
   // Ramazan hesaplamaları
   const ramadanInfo = useMemo(() => {
     const now = currentTime;
-    const start = RAMADAN_2025.start;
-    const end = RAMADAN_2025.end;
+    const start = RAMADAN_2026.start;
+    const end = RAMADAN_2026.end;
 
     const isRamadan = now >= start && now <= end;
     const isBeforeRamadan = now < start;
@@ -204,9 +314,13 @@ export function RamadanScreen() {
     const minutes = now.getMinutes();
     const currentMinutes = hours * 60 + minutes;
 
+    // todayTimes yoksa varsayılan değerler kullan
+    const imsakTime = todayTimes?.Imsak?.split(' ')[0] || todayTimes?.Fajr?.split(' ')[0] || '05:30';
+    const iftarTime = todayTimes?.Maghrib?.split(' ')[0] || '18:30';
+
     // İmsak ve iftar vakitlerini dakikaya çevir
-    const [imsakH, imsakM] = SAMPLE_IMSAKIYE.imsak.split(':').map(Number);
-    const [iftarH, iftarM] = SAMPLE_IMSAKIYE.aksam.split(':').map(Number);
+    const [imsakH, imsakM] = imsakTime.split(':').map(Number);
+    const [iftarH, iftarM] = iftarTime.split(':').map(Number);
     const imsakMinutes = imsakH * 60 + imsakM;
     const iftarMinutes = iftarH * 60 + iftarM;
 
@@ -217,19 +331,19 @@ export function RamadanScreen() {
 
     if (currentMinutes < imsakMinutes) {
       // Sahura kadar
-      targetTime = SAMPLE_IMSAKIYE.imsak;
+      targetTime = imsakTime;
       targetLabel = 'Sahur';
       remainingMinutes = imsakMinutes - currentMinutes;
       isFasting = false;
     } else if (currentMinutes < iftarMinutes) {
       // İftara kadar
-      targetTime = SAMPLE_IMSAKIYE.aksam;
+      targetTime = iftarTime;
       targetLabel = 'İftar';
       remainingMinutes = iftarMinutes - currentMinutes;
       isFasting = true;
     } else {
       // Ertesi gün sahura kadar
-      targetTime = SAMPLE_IMSAKIYE.imsak;
+      targetTime = imsakTime;
       targetLabel = 'Sahur';
       remainingMinutes = (24 * 60 - currentMinutes) + imsakMinutes;
       isFasting = false;
@@ -248,7 +362,7 @@ export function RamadanScreen() {
       isFasting,
       isActive: true,
     };
-  }, [currentTime, ramadanInfo.isRamadan]);
+  }, [currentTime, ramadanInfo.isRamadan, todayTimes]);
 
   // Tutulan oruç sayısı
   const fastingStats = useMemo(() => {
@@ -270,17 +384,7 @@ export function RamadanScreen() {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View>
-              <Text style={styles.headerTitle}>Ramazan</Text>
-              <Text style={styles.headerSubtitle}>
-                {RAMADAN_2025.hijriYear} Hicri
-              </Text>
-            </View>
-            <View style={styles.moonContainer}>
-              <Icon name="moon-waning-crescent" size={40} color="#FFD700" />
-            </View>
-          </View>
+          <Text style={styles.headerTitle}>Ramazan</Text>
         </View>
 
         {/* Ramazan Durumu */}
@@ -293,7 +397,7 @@ export function RamadanScreen() {
               <Text style={styles.statusTitle}>Ramazan'a Kalan</Text>
               <Text style={styles.statusValue}>{ramadanInfo.daysUntilStart} Gün</Text>
               <Text style={styles.statusDate}>
-                {RAMADAN_2025.start.toLocaleDateString('tr-TR', {
+                {RAMADAN_2026.start.toLocaleDateString('tr-TR', {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric',
@@ -319,7 +423,7 @@ export function RamadanScreen() {
         )}
 
         {/* Sayaç Kartı */}
-        <View style={styles.countdownCard}>
+        <View style={[styles.countdownCard, { backgroundColor: cardBgColor }]}>
           <View style={styles.countdownHeader}>
             <Icon
               name={countdownInfo.isActive
@@ -370,48 +474,67 @@ export function RamadanScreen() {
         </View>
 
         {/* İmsakiye */}
-        <View style={styles.imsakiyeCard}>
+        <View style={[styles.imsakiyeCard, { backgroundColor: cardBgColor }]}>
           <View style={styles.cardHeader}>
             <Icon name="clock-outline" size={20} color="#4CAF50" />
             <Text style={styles.cardTitle}>Bugünün Vakitleri</Text>
+            {location && (
+              <Text style={styles.locationBadge}>{location.city}</Text>
+            )}
           </View>
 
           <View style={styles.imsakiyeGrid}>
             <View style={styles.imsakiyeItem}>
               <Icon name="weather-night" size={20} color="#9C27B0" />
               <Text style={styles.imsakiyeLabel}>İmsak</Text>
-              <Text style={styles.imsakiyeTime}>{SAMPLE_IMSAKIYE.imsak}</Text>
+              <Text style={styles.imsakiyeTime}>{todayTimes?.Imsak?.split(' ')[0] || todayTimes?.Fajr?.split(' ')[0] || '--:--'}</Text>
             </View>
             <View style={styles.imsakiyeItem}>
               <Icon name="weather-sunset-up" size={20} color="#FF9800" />
               <Text style={styles.imsakiyeLabel}>Güneş</Text>
-              <Text style={styles.imsakiyeTime}>{SAMPLE_IMSAKIYE.gunes}</Text>
+              <Text style={styles.imsakiyeTime}>{todayTimes?.Sunrise?.split(' ')[0] || '--:--'}</Text>
             </View>
             <View style={styles.imsakiyeItem}>
               <Icon name="weather-sunny" size={20} color="#FFC107" />
               <Text style={styles.imsakiyeLabel}>Öğle</Text>
-              <Text style={styles.imsakiyeTime}>{SAMPLE_IMSAKIYE.ogle}</Text>
+              <Text style={styles.imsakiyeTime}>{todayTimes?.Dhuhr?.split(' ')[0] || '--:--'}</Text>
             </View>
             <View style={styles.imsakiyeItem}>
               <Icon name="weather-partly-cloudy" size={20} color="#FF5722" />
               <Text style={styles.imsakiyeLabel}>İkindi</Text>
-              <Text style={styles.imsakiyeTime}>{SAMPLE_IMSAKIYE.ikindi}</Text>
+              <Text style={styles.imsakiyeTime}>{todayTimes?.Asr?.split(' ')[0] || '--:--'}</Text>
             </View>
             <View style={styles.imsakiyeItem}>
               <Icon name="weather-sunset-down" size={20} color="#E91E63" />
               <Text style={styles.imsakiyeLabel}>Akşam</Text>
-              <Text style={styles.imsakiyeTime}>{SAMPLE_IMSAKIYE.aksam}</Text>
+              <Text style={styles.imsakiyeTime}>{todayTimes?.Maghrib?.split(' ')[0] || '--:--'}</Text>
             </View>
             <View style={styles.imsakiyeItem}>
               <Icon name="weather-night" size={20} color="#673AB7" />
               <Text style={styles.imsakiyeLabel}>Yatsı</Text>
-              <Text style={styles.imsakiyeTime}>{SAMPLE_IMSAKIYE.yatsi}</Text>
+              <Text style={styles.imsakiyeTime}>{todayTimes?.Isha?.split(' ')[0] || '--:--'}</Text>
             </View>
           </View>
         </View>
 
+        {/* İmsakiye Takvimi Kartı */}
+        <TouchableOpacity
+          style={[styles.imsakiyeClickCard, { backgroundColor: cardBgColor }]}
+          onPress={() => setShowImsakiyeModal(true)}
+          activeOpacity={0.8}
+        >
+          <Icon name="calendar-month" size={32} color="#9C27B0" />
+          <View style={styles.imsakiyeClickInfo}>
+            <Text style={styles.imsakiyeClickTitle}>Ramazan İmsakiyesi</Text>
+            <Text style={styles.imsakiyeClickDesc}>
+              30 günlük imsak ve iftar vakitlerini görüntüle
+            </Text>
+            <Text style={styles.imsakiyeClickLink}>İmsakiyeyi görmek için tıklayın →</Text>
+          </View>
+        </TouchableOpacity>
+
         {/* Oruç Takibi */}
-        <View style={styles.fastingCard}>
+        <View style={[styles.fastingCard, { backgroundColor: cardBgColor }]}>
           <View style={styles.cardHeader}>
             <Icon name="check-circle-outline" size={20} color="#4CAF50" />
             <Text style={styles.cardTitle}>Oruç Takibi</Text>
@@ -472,19 +595,21 @@ export function RamadanScreen() {
           </View>
 
           {RAMADAN_DUAS.map((dua) => (
-            <TouchableOpacity
+            <View
               key={dua.id}
-              style={styles.duaCard}
-              onPress={() => openDua(dua)}
+              style={[styles.duaCardExpanded, { backgroundColor: cardBgColor }]}
             >
-              <View style={styles.duaInfo}>
+              <View style={styles.duaTitleRow}>
+                <Icon name="star-four-points" size={16} color="#4CAF50" />
                 <Text style={styles.duaTitle}>{dua.title}</Text>
-                <Text style={styles.duaMeaning} numberOfLines={1}>
-                  {dua.meaning}
-                </Text>
               </View>
-              <Icon name="chevron-right" size={24} color="rgba(255,255,255,0.4)" />
-            </TouchableOpacity>
+              <Text style={styles.duaArabicText}>{dua.arabic}</Text>
+              <Text style={styles.duaReadingText}>{dua.turkishReading}</Text>
+              <View style={styles.duaMeaningBox}>
+                <Text style={styles.duaMeaningLabel}>Anlamı:</Text>
+                <Text style={styles.duaMeaningText}>{dua.meaning}</Text>
+              </View>
+            </View>
           ))}
         </View>
 
@@ -500,7 +625,7 @@ export function RamadanScreen() {
             </View>
           </View>
           <View style={styles.fitreAmount}>
-            <Text style={styles.fitreValue}>2025 Fitre Miktarı</Text>
+            <Text style={styles.fitreValue}>2026 Fitre Miktarı</Text>
             <Text style={styles.fitrePrice}>₺150 - ₺250</Text>
             <Text style={styles.fitreNote}>
               *Diyanet tarafından belirlenen miktara göre değişir
@@ -639,6 +764,97 @@ export function RamadanScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* İmsakiye Modal */}
+      <Modal
+        visible={showImsakiyeModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowImsakiyeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.imsakiyeModal}>
+            <View style={styles.duaModalHeader}>
+              <TouchableOpacity onPress={() => setShowImsakiyeModal(false)}>
+                <Icon name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={styles.duaModalTitle}>Ramazan İmsakiyesi 2026</Text>
+                {location && <Text style={styles.imsakiyeLocationText}>{location.city}</Text>}
+              </View>
+              <View style={{ width: 24 }} />
+            </View>
+
+            {imsakiyeLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#9C27B0" />
+                <Text style={styles.loadingText}>İmsakiye yükleniyor...</Text>
+              </View>
+            ) : imsakiyeData.length === 0 ? (
+              <View style={styles.loadingContainer}>
+                <Icon name="calendar-remove" size={48} color="rgba(255,255,255,0.3)" />
+                <Text style={styles.loadingText}>İmsakiye verisi bulunamadı</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={fetchImsakiye}>
+                  <Text style={styles.retryButtonText}>Tekrar Dene</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+            <ScrollView style={styles.imsakiyeTableContainer} showsVerticalScrollIndicator={false}>
+              {imsakiyeData.map((item) => {
+                const isCurrentDay = ramadanInfo.isRamadan && item.day === ramadanInfo.currentDay;
+                return (
+                  <View
+                    key={item.day}
+                    style={[
+                      styles.imsakiyeDayCard,
+                      isCurrentDay && styles.imsakiyeDayCardCurrent,
+                    ]}
+                  >
+                    {/* Tarih Satırı */}
+                    <View style={styles.imsakiyeDateRow}>
+                      <Text style={[styles.imsakiyeHicriText, isCurrentDay && styles.imsakiyeTextCurrent]}>
+                        {item.hicri}
+                      </Text>
+                      <Text style={[styles.imsakiyeMiladiText, isCurrentDay && styles.imsakiyeTextCurrent]}>
+                        {item.miladi}
+                      </Text>
+                    </View>
+                    {/* Vakitler Satırı */}
+                    <View style={styles.imsakiyeTimesRow}>
+                      <View style={styles.imsakiyeTimeBox}>
+                        <Text style={styles.imsakiyeTimeLabel}>İmsak</Text>
+                        <Text style={[styles.imsakiyeTimeValue, isCurrentDay && styles.imsakiyeTimeValueCurrent]}>{item.imsak}</Text>
+                      </View>
+                      <View style={styles.imsakiyeTimeBox}>
+                        <Text style={styles.imsakiyeTimeLabel}>Güneş</Text>
+                        <Text style={[styles.imsakiyeTimeValue, isCurrentDay && styles.imsakiyeTimeValueCurrent]}>{item.gunes}</Text>
+                      </View>
+                      <View style={styles.imsakiyeTimeBox}>
+                        <Text style={styles.imsakiyeTimeLabel}>Öğle</Text>
+                        <Text style={[styles.imsakiyeTimeValue, isCurrentDay && styles.imsakiyeTimeValueCurrent]}>{item.ogle}</Text>
+                      </View>
+                      <View style={styles.imsakiyeTimeBox}>
+                        <Text style={styles.imsakiyeTimeLabel}>İkindi</Text>
+                        <Text style={[styles.imsakiyeTimeValue, isCurrentDay && styles.imsakiyeTimeValueCurrent]}>{item.ikindi}</Text>
+                      </View>
+                      <View style={styles.imsakiyeTimeBox}>
+                        <Text style={styles.imsakiyeTimeLabel}>Akşam</Text>
+                        <Text style={[styles.imsakiyeTimeValue, isCurrentDay && styles.imsakiyeTimeValueCurrent]}>{item.aksam}</Text>
+                      </View>
+                      <View style={styles.imsakiyeTimeBox}>
+                        <Text style={styles.imsakiyeTimeLabel}>Yatsı</Text>
+                        <Text style={[styles.imsakiyeTimeValue, isCurrentDay && styles.imsakiyeTimeValueCurrent]}>{item.yatsi}</Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+              <View style={{ height: 40 }} />
+            </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </BackgroundWrapper>
   );
 }
@@ -648,32 +864,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 50,
+    paddingTop: 60,
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.md,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '600',
     color: '#fff',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-    marginTop: 4,
-  },
-  moonContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    textAlign: 'center',
   },
 
   // Status Card
@@ -702,16 +902,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statusTitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: 'rgba(255,255,255,0.6)',
   },
   statusValue: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: '#fff',
   },
   statusDate: {
-    fontSize: 13,
+    fontSize: 15,
     color: 'rgba(255,255,255,0.5)',
     marginTop: 2,
   },
@@ -732,7 +932,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   countdownLabel: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#fff',
   },
@@ -751,17 +951,17 @@ const styles = StyleSheet.create({
     minWidth: 70,
   },
   timeValue: {
-    fontSize: 32,
+    fontSize: 38,
     fontWeight: '700',
     color: '#fff',
   },
   timeLabel: {
-    fontSize: 11,
+    fontSize: 13,
     color: 'rgba(255,255,255,0.6)',
     marginTop: 4,
   },
   timeSeparator: {
-    fontSize: 32,
+    fontSize: 38,
     fontWeight: '700',
     color: 'rgba(255,255,255,0.4)',
   },
@@ -770,7 +970,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   countdownTime: {
-    fontSize: 14,
+    fontSize: 16,
     color: 'rgba(255,255,255,0.6)',
   },
 
@@ -789,7 +989,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#fff',
     flex: 1,
@@ -808,12 +1008,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   imsakiyeLabel: {
-    fontSize: 11,
+    fontSize: 13,
     color: 'rgba(255,255,255,0.6)',
     marginTop: 4,
   },
   imsakiyeTime: {
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: '600',
     color: '#fff',
     marginTop: 2,
@@ -845,12 +1045,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fastingStatValue: {
-    fontSize: 28,
+    fontSize: 34,
     fontWeight: '700',
     color: '#4CAF50',
   },
   fastingStatLabel: {
-    fontSize: 12,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.6)',
   },
   fastingProgress: {
@@ -867,7 +1067,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   progressText: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
     color: '#fff',
   },
@@ -892,7 +1092,7 @@ const styles = StyleSheet.create({
     borderColor: '#FFD700',
   },
   calendarDayText: {
-    fontSize: 11,
+    fontSize: 13,
     color: 'rgba(255,255,255,0.7)',
     fontWeight: '500',
   },
@@ -905,31 +1105,57 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
   },
-  duaCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  duaCardExpanded: {
     backgroundColor: 'rgba(0,0,0,0.3)',
     padding: spacing.md,
-    borderRadius: 12,
-    marginBottom: spacing.sm,
+    borderRadius: 16,
+    marginBottom: spacing.md,
   },
-  duaInfo: {
-    flex: 1,
+  duaTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   duaTitle: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '600',
     color: '#fff',
   },
-  duaMeaning: {
-    fontSize: 13,
+  duaArabicText: {
+    fontSize: 22,
+    color: '#fff',
+    textAlign: 'right',
+    lineHeight: 36,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  duaReadingText: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.8)',
+    fontStyle: 'italic',
+    lineHeight: 24,
+    marginBottom: spacing.md,
+  },
+  duaMeaningBox: {
+    backgroundColor: 'rgba(76, 175, 80, 0.25)',
+    padding: spacing.md,
+    borderRadius: 12,
+  },
+  duaMeaningLabel: {
+    fontSize: 12,
     color: 'rgba(255,255,255,0.5)',
-    marginTop: 4,
+    marginBottom: 4,
+  },
+  duaMeaningText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 22,
   },
 
   // Fitre Card
   fitreCard: {
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
     padding: spacing.md,
@@ -945,12 +1171,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fitreTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#FFD700',
   },
   fitreDesc: {
-    fontSize: 13,
+    fontSize: 15,
     color: 'rgba(255,255,255,0.6)',
     marginTop: 4,
   },
@@ -961,17 +1187,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fitreValue: {
-    fontSize: 13,
+    fontSize: 15,
     color: 'rgba(255,255,255,0.6)',
   },
   fitrePrice: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: '#FFD700',
     marginVertical: 4,
   },
   fitreNote: {
-    fontSize: 11,
+    fontSize: 13,
     color: 'rgba(255,255,255,0.4)',
     fontStyle: 'italic',
   },
@@ -980,7 +1206,7 @@ const styles = StyleSheet.create({
   teravihCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
     padding: spacing.md,
@@ -991,12 +1217,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   teravihTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#4CAF50',
   },
   teravihDesc: {
-    fontSize: 13,
+    fontSize: 15,
     color: 'rgba(255,255,255,0.6)',
     marginTop: 4,
   },
@@ -1079,7 +1305,7 @@ const styles = StyleSheet.create({
 
   // Teravih link
   teravihLink: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#4CAF50',
     marginTop: 6,
     fontWeight: '500',
@@ -1106,12 +1332,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   teravihSummaryValue: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
     color: '#4CAF50',
   },
   teravihSummaryLabel: {
-    fontSize: 12,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.6)',
     marginTop: 2,
   },
@@ -1130,9 +1356,9 @@ const styles = StyleSheet.create({
   },
   teravihNoteText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 15,
     color: 'rgba(255,255,255,0.8)',
-    lineHeight: 20,
+    lineHeight: 22,
   },
   teravihStep: {
     flexDirection: 'row',
@@ -1148,7 +1374,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   teravihStepNumberText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     color: '#fff',
   },
@@ -1156,15 +1382,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   teravihStepTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#fff',
     marginBottom: 4,
   },
   teravihStepDesc: {
-    fontSize: 14,
+    fontSize: 15,
     color: 'rgba(255,255,255,0.7)',
-    lineHeight: 22,
+    lineHeight: 24,
   },
   hatimInfo: {
     flexDirection: 'row',
@@ -1178,14 +1404,151 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   hatimInfoTitle: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '600',
     color: '#4CAF50',
     marginBottom: 4,
   },
   hatimInfoDesc: {
-    fontSize: 13,
+    fontSize: 15,
     color: 'rgba(255,255,255,0.7)',
-    lineHeight: 20,
+    lineHeight: 22,
+  },
+
+  // İmsakiye Tıklanabilir Kart
+  imsakiyeClickCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(156, 39, 176, 0.15)',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    borderRadius: 16,
+    gap: spacing.md,
+  },
+  imsakiyeClickInfo: {
+    flex: 1,
+  },
+  imsakiyeClickTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#9C27B0',
+  },
+  imsakiyeClickDesc: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 4,
+  },
+  imsakiyeClickLink: {
+    fontSize: 14,
+    color: '#9C27B0',
+    marginTop: 6,
+    fontWeight: '500',
+  },
+
+  // İmsakiye Modal
+  imsakiyeModal: {
+    backgroundColor: '#1a1a1a',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: '85%',
+    minHeight: 500,
+  },
+  imsakiyeTableContainer: {
+    flex: 1,
+    paddingHorizontal: spacing.sm,
+  },
+  imsakiyeDayCard: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    padding: spacing.sm,
+    marginVertical: 4,
+  },
+  imsakiyeDayCardCurrent: {
+    backgroundColor: 'rgba(156, 39, 176, 0.3)',
+    borderWidth: 1,
+    borderColor: '#9C27B0',
+  },
+  imsakiyeDateRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+    paddingBottom: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  imsakiyeHicriText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#CE93D8',
+  },
+  imsakiyeMiladiText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  imsakiyeTextCurrent: {
+    color: '#fff',
+  },
+  imsakiyeTimesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  imsakiyeTimeBox: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  imsakiyeTimeLabel: {
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.5)',
+    marginBottom: 2,
+  },
+  imsakiyeTimeValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.9)',
+  },
+  imsakiyeTimeValueCurrent: {
+    color: '#fff',
+  },
+
+  // Location badge
+  locationBadge: {
+    fontSize: 11,
+    color: '#4CAF50',
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+
+  // Imsakiye modal extras
+  imsakiyeLocationText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 2,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl * 2,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: spacing.md,
+  },
+  retryButton: {
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(156, 39, 176, 0.3)',
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    color: '#CE93D8',
+    fontWeight: '500',
   },
 });

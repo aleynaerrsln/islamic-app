@@ -960,9 +960,10 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   topBarTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: '#fff',
+    textAlign: 'center',
   },
   dhikrInfo: {
     alignItems: 'center',

@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as ExpoLocation from 'expo-location';
 import { spacing, borderRadius } from '../theme';
@@ -213,12 +213,24 @@ export function LocationPickerModal({
   onLocationSelect,
   currentLocation,
 }: LocationPickerModalProps) {
+  const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingGPS, setIsLoadingGPS] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('cities');
   const [selectedCity, setSelectedCity] = useState<CityData | null>(null);
   const [listItems, setListItems] = useState<ListItem[]>([]);
   const { setLocationMode } = useSettingsStore();
+
+  // Tema bazlı renkler
+  const modalBgColor = theme.dark ? '#0a0a0a' : '#ffffff';
+  const textColor = theme.dark ? '#fff' : '#1a1a1a';
+  const subtextColor = theme.dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+  const borderColor = theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+  const cardBgColor = theme.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+  const inputBgColor = theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+  const iconColor = theme.dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+  const buttonBgColor = theme.dark ? '#E5E5E5' : 'rgba(0,0,0,0.08)';
+  const buttonIconColor = theme.dark ? '#1a1a1a' : '#1a1a1a';
 
   // Liste elemanlarını oluştur
   useEffect(() => {
@@ -377,17 +389,21 @@ export function LocationPickerModal({
 
     return (
       <TouchableOpacity
-        style={[styles.cityItem, isSelected && styles.cityItemSelected]}
+        style={[
+          styles.cityItem,
+          { backgroundColor: cardBgColor },
+          isSelected && styles.cityItemSelected,
+        ]}
         onPress={() => handleItemSelect(item)}
       >
         <View style={styles.cityInfo}>
-          <Text style={styles.cityName}>{item.name}</Text>
+          <Text style={[styles.cityName, { color: textColor }]}>{item.name}</Text>
           {item.subtitle && (
-            <Text style={styles.cityCountry}>{item.subtitle}</Text>
+            <Text style={[styles.cityCountry, { color: subtextColor }]}>{item.subtitle}</Text>
           )}
         </View>
         {item.hasDistricts ? (
-          <Icon name="chevron-right" size={22} color="rgba(255,255,255,0.6)" />
+          <Icon name="chevron-right" size={22} color={iconColor} />
         ) : isSelected ? (
           <Icon name="check-circle" size={22} color="#4CAF50" />
         ) : null}
@@ -406,19 +422,19 @@ export function LocationPickerModal({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.modalOverlay}
       >
-        <View style={styles.modalContainer}>
+        <View style={[styles.modalContainer, { backgroundColor: modalBgColor }]}>
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { borderBottomColor: borderColor }]}>
             {viewMode === 'districts' ? (
-              <TouchableOpacity onPress={handleBackPress} style={styles.closeButton}>
-                <Icon name="arrow-left" size={24} color="#fff" />
+              <TouchableOpacity onPress={handleBackPress} style={[styles.closeButton, { backgroundColor: buttonBgColor }]}>
+                <Icon name="arrow-left" size={24} color={buttonIconColor} />
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Icon name="close" size={24} color="#fff" />
+              <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: buttonBgColor }]}>
+                <Icon name="close" size={24} color={buttonIconColor} />
               </TouchableOpacity>
             )}
-            <Text style={styles.headerTitle}>
+            <Text style={[styles.headerTitle, { color: textColor }]}>
               {viewMode === 'districts' && selectedCity
                 ? `${selectedCity.name} - İlçe Seç`
                 : 'Konum Seç'}
@@ -445,24 +461,24 @@ export function LocationPickerModal({
           )}
 
           {/* Arama */}
-          <View style={styles.searchContainer}>
-            <Icon name="magnify" size={22} color="rgba(255,255,255,0.5)" />
+          <View style={[styles.searchContainer, { backgroundColor: inputBgColor }]}>
+            <Icon name="magnify" size={22} color={iconColor} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: textColor }]}
               placeholder={viewMode === 'districts' ? 'İlçe ara...' : 'Şehir ara...'}
-              placeholderTextColor="rgba(255,255,255,0.4)"
+              placeholderTextColor={iconColor}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Icon name="close-circle" size={20} color="rgba(255,255,255,0.5)" />
+                <Icon name="close-circle" size={20} color={iconColor} />
               </TouchableOpacity>
             )}
           </View>
 
           {/* Bölüm Başlığı */}
-          <Text style={styles.sectionTitle}>
+          <Text style={[styles.sectionTitle, { color: subtextColor }]}>
             {searchQuery
               ? 'Arama Sonuçları'
               : viewMode === 'districts'
@@ -479,8 +495,8 @@ export function LocationPickerModal({
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Icon name="map-marker-off" size={48} color="rgba(255,255,255,0.3)" />
-                <Text style={styles.emptyText}>
+                <Icon name="map-marker-off" size={48} color={iconColor} />
+                <Text style={[styles.emptyText, { color: subtextColor }]}>
                   {viewMode === 'districts' ? 'İlçe bulunamadı' : 'Şehir bulunamadı'}
                 </Text>
               </View>
@@ -500,7 +516,6 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     marginTop: 80,
-    backgroundColor: '#0a0a0a',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
@@ -512,20 +527,17 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   closeButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 20,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
   },
   gpsButton: {
     flexDirection: 'row',
@@ -548,7 +560,6 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
     marginHorizontal: spacing.md,
     marginTop: spacing.md,
     paddingHorizontal: spacing.md,
@@ -557,13 +568,11 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: '#fff',
     fontSize: 16,
     marginLeft: spacing.sm,
   },
   sectionTitle: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
     marginHorizontal: spacing.md,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
@@ -578,7 +587,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.05)',
     padding: spacing.md,
     borderRadius: borderRadius.sm,
     marginBottom: spacing.sm,
@@ -594,11 +602,9 @@ const styles = StyleSheet.create({
   cityName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
   },
   cityCountry: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
     marginTop: 2,
   },
   emptyContainer: {
@@ -606,7 +612,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xl,
   },
   emptyText: {
-    color: 'rgba(255,255,255,0.5)',
     fontSize: 14,
     marginTop: spacing.sm,
   },

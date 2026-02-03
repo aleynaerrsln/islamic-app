@@ -5,6 +5,92 @@ import { useSettingsStore } from '../store/settingsStore';
 import type { PrayerTimes } from '../types';
 import { PRAYER_NAMES } from '../types';
 
+// 2026 Ramazan tarihleri (Hicri 1447) - Diyanet takvimi
+// Ramazan: 1 Ramazan (19 Şubat) - 30 Ramazan (19 Mart)
+// Bayram: 1 Şevval (20 Mart) - 3 Şevval (22 Mart)
+const RAMADAN_2026 = {
+  start: new Date('2026-02-19T00:00:00'),
+  end: new Date('2026-03-19T23:59:59'),
+};
+
+const EID_2026 = {
+  start: new Date('2026-03-20T00:00:00'),
+  end: new Date('2026-03-22T23:59:59'),
+};
+
+// 2026 Kurban Bayramı tarihleri (Hicri 1447) - Diyanet takvimi
+// Kurban Bayramı: 10 Zilhicce (27 Mayıs) - 13 Zilhicce (30 Mayıs)
+const KURBAN_BAYRAMI_2026 = {
+  start: new Date('2026-05-27T00:00:00'),
+  end: new Date('2026-05-30T23:59:59'),
+};
+
+// Kurban Bayramı mesajı
+const KURBAN_BAYRAMI_MESSAGE = {
+  title: 'Kurban Bayramınız Mübarek Olsun! 🐑',
+  body: 'Kurbanlarınız kabul olsun. Sevdiklerinizle birlikte sağlıklı, huzurlu bir bayram geçirmenizi dileriz.',
+};
+
+// Bayram mesajları
+const EID_MESSAGES = [
+  {
+    title: 'Ramazan Bayramınız Mübarek Olsun! 🎉',
+    body: 'Tuttuğunuz oruçlar, kıldığınız namazlar kabul olsun. Hayırlı bayramlar!',
+  },
+  {
+    title: 'Bayramınız Kutlu Olsun! 🌙',
+    body: 'Bu mübarek günlerde sevdiklerinizle mutlu anlar geçirmenizi dileriz.',
+  },
+  {
+    title: 'İyi Bayramlar! 🕌',
+    body: 'Ramazan\'ın bereketini bayramda da yaşamanız dileğiyle. Bayramınız mübarek olsun!',
+  },
+];
+
+// Ramazan motivasyon mesajları
+const RAMADAN_MOTIVATION_MESSAGES = [
+  {
+    title: 'Ramazan Motivasyonu 🌙',
+    body: 'Yarısını geçtin! Her açlık anı bir sevap. İftara az kaldı 💪',
+  },
+  {
+    title: 'Sabret, Kazanırsın 🤲',
+    body: '"Oruç bir kalkandır." - Hz. Muhammed (s.a.v.) Sabret, mükafatı Allah\'tan!',
+  },
+  {
+    title: 'Yalnız Değilsin 🌍',
+    body: 'Milyonlarca Müslüman seninle birlikte oruç tutuyor. Hep birlikte!',
+  },
+  {
+    title: 'Dua Vakti 🤲',
+    body: 'Oruçlunun duası kabul olunur. Sevdiklerin için dua etmeyi unutma!',
+  },
+  {
+    title: 'Ramazan Bereketi 🌟',
+    body: 'Bedenin oruçta, kalbin huzurda. Bu mübarek ayın bereketini hisset.',
+  },
+  {
+    title: 'Az Kaldı! ⏰',
+    body: 'Sabret, bu açlık geçici ama sevabı kalıcı. Allah seninle!',
+  },
+  {
+    title: 'Güzel Haber 📿',
+    body: '"Oruçlunun iki sevinci vardır: İftar vakti ve Rabbine kavuştuğu an."',
+  },
+  {
+    title: 'Rahmet Ayı 🕌',
+    body: 'Ramazan rahmet ayıdır. Bugün bir iyilik yap, bereketini gör!',
+  },
+  {
+    title: 'Şükür Vakti 🙏',
+    body: 'Oruç tutabildiğin için şükret. Nice insanlar bu nimetten mahrum.',
+  },
+  {
+    title: 'Devam Et 💪',
+    body: 'Her geçen saat seni iftara yaklaştırıyor. Biraz daha sabret!',
+  },
+];
+
 // Bildirim davranışını ayarla
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -60,13 +146,22 @@ export function useNotifications(): UseNotificationsResult {
       return false;
     }
 
-    // Android için kanal oluştur
+    // Android için kanalları oluştur
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('prayer-times', {
         name: 'Namaz Vakitleri',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#1B5E20',
+        sound: 'default',
+      });
+
+      // Ramazan motivasyon bildirimleri için kanal
+      await Notifications.setNotificationChannelAsync('ramadan-motivation', {
+        name: 'Ramazan Motivasyonu',
+        importance: Notifications.AndroidImportance.DEFAULT,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#4CAF50',
         sound: 'default',
       });
     }
@@ -152,4 +247,237 @@ export async function sendTestNotification(): Promise<void> {
       seconds: 2,
     },
   });
+}
+
+// Ramazan'da olup olmadığını kontrol et
+function isRamadan(): boolean {
+  const now = new Date();
+  return now >= RAMADAN_2026.start && now <= RAMADAN_2026.end;
+}
+
+// Ramazan'ın kaçıncı günü olduğunu hesapla
+function getRamadanDay(): number {
+  const now = new Date();
+  const diffTime = now.getTime() - RAMADAN_2026.start.getTime();
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+}
+
+// Ramazan motivasyon bildirimlerini planla
+export async function scheduleRamadanMotivationNotifications(): Promise<void> {
+  // Ramazan değilse bildirim planlama
+  if (!isRamadan()) {
+    console.log('Ramazan ayı değil, motivasyon bildirimleri planlanmadı');
+    return;
+  }
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Bugün için saat 12:00'de bildirim planla
+  const noonNotification = new Date(today);
+  noonNotification.setHours(12, 0, 0, 0);
+
+  // Eğer saat 12'yi geçmemişse bugün için planla
+  if (noonNotification > now) {
+    const dayOfRamadan = getRamadanDay();
+    const messageIndex = (dayOfRamadan - 1) % RAMADAN_MOTIVATION_MESSAGES.length;
+    const message = RAMADAN_MOTIVATION_MESSAGES[messageIndex];
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: message.title,
+        body: message.body,
+        sound: true,
+        data: { type: 'ramadan-motivation', day: dayOfRamadan },
+      },
+      trigger: {
+        date: noonNotification,
+        channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
+      },
+    });
+
+    console.log(`Ramazan ${dayOfRamadan}. gün motivasyon bildirimi planlandı: 12:00`);
+  }
+
+  // Yarın için de planla (her gün farklı mesaj)
+  const tomorrowNoon = new Date(today);
+  tomorrowNoon.setDate(tomorrowNoon.getDate() + 1);
+  tomorrowNoon.setHours(12, 0, 0, 0);
+
+  // Yarın hala Ramazan'daysa
+  if (tomorrowNoon <= RAMADAN_2026.end) {
+    const tomorrowDayOfRamadan = getRamadanDay() + 1;
+    const messageIndex = (tomorrowDayOfRamadan - 1) % RAMADAN_MOTIVATION_MESSAGES.length;
+    const message = RAMADAN_MOTIVATION_MESSAGES[messageIndex];
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: message.title,
+        body: message.body,
+        sound: true,
+        data: { type: 'ramadan-motivation', day: tomorrowDayOfRamadan },
+      },
+      trigger: {
+        date: tomorrowNoon,
+        channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
+      },
+    });
+
+    console.log(`Ramazan ${tomorrowDayOfRamadan}. gün motivasyon bildirimi planlandı: yarın 12:00`);
+  }
+}
+
+// İftara 1 saat kala hatırlatma bildirimi planla
+export async function scheduleIftarReminderNotification(iftarTime: string): Promise<void> {
+  if (!isRamadan()) return;
+
+  const now = new Date();
+  const [hours, minutes] = iftarTime.split(':').map(Number);
+
+  const iftarDate = new Date(now);
+  iftarDate.setHours(hours, minutes, 0, 0);
+
+  // İftara 1 saat kala
+  const reminderDate = new Date(iftarDate.getTime() - 60 * 60 * 1000);
+
+  if (reminderDate > now) {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'İftara 1 Saat Kaldı! 🌙',
+        body: 'Biraz daha sabret, iftar vakti yaklaşıyor. Sofranı hazırlamaya başlayabilirsin.',
+        sound: true,
+        data: { type: 'iftar-reminder' },
+      },
+      trigger: {
+        date: reminderDate,
+        channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
+      },
+    });
+
+    console.log('İftar hatırlatma bildirimi planlandı');
+  }
+}
+
+// Ramazan Bayramı'nın 1. günü mü kontrol et
+function isEidFirstDay(): boolean {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const eidFirstDay = new Date(EID_2026.start.getFullYear(), EID_2026.start.getMonth(), EID_2026.start.getDate());
+  return today.getTime() === eidFirstDay.getTime();
+}
+
+// Kurban Bayramı'nın 1. günü mü kontrol et
+function isKurbanBayramiFirstDay(): boolean {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const kurbanFirstDay = new Date(KURBAN_BAYRAMI_2026.start.getFullYear(), KURBAN_BAYRAMI_2026.start.getMonth(), KURBAN_BAYRAMI_2026.start.getDate());
+  return today.getTime() === kurbanFirstDay.getTime();
+}
+
+// Bayram bildirimlerini planla (sadece 1. günlerde)
+export async function scheduleEidNotifications(): Promise<void> {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Ramazan Bayramı 1. gün - sabah 09:00'da bildirim
+  if (isEidFirstDay()) {
+    const morningNotification = new Date(today);
+    morningNotification.setHours(9, 0, 0, 0);
+
+    if (morningNotification > now) {
+      const message = EID_MESSAGES[0];
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: message.title,
+          body: message.body,
+          sound: true,
+          data: { type: 'ramazan-bayrami-greeting' },
+        },
+        trigger: {
+          date: morningNotification,
+          channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
+        },
+      });
+
+      console.log('Ramazan Bayramı 1. gün bildirimi planlandı: 09:00');
+    }
+  }
+
+  // Kurban Bayramı 1. gün - sabah 09:00'da bildirim
+  if (isKurbanBayramiFirstDay()) {
+    const morningNotification = new Date(today);
+    morningNotification.setHours(9, 0, 0, 0);
+
+    if (morningNotification > now) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: KURBAN_BAYRAMI_MESSAGE.title,
+          body: KURBAN_BAYRAMI_MESSAGE.body,
+          sound: true,
+          data: { type: 'kurban-bayrami-greeting' },
+        },
+        trigger: {
+          date: morningNotification,
+          channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
+        },
+      });
+
+      console.log('Kurban Bayramı 1. gün bildirimi planlandı: 09:00');
+    }
+  }
+
+  // Ramazan Bayramı arefesi için bildirim planla
+  const ramazanArefeDate = new Date(EID_2026.start);
+  ramazanArefeDate.setDate(ramazanArefeDate.getDate() - 1);
+  const isRamazanArefe = today.getTime() === new Date(ramazanArefeDate.getFullYear(), ramazanArefeDate.getMonth(), ramazanArefeDate.getDate()).getTime();
+
+  if (isRamazanArefe) {
+    const eveningNotification = new Date(today);
+    eveningNotification.setHours(20, 0, 0, 0);
+
+    if (eveningNotification > now) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Arefe Gününüz Mübarek Olsun! 🌙',
+          body: 'Yarın bayram! Ramazan\'ı güzelce tamamladınız. Allah kabul etsin.',
+          sound: true,
+          data: { type: 'ramazan-arefe-greeting' },
+        },
+        trigger: {
+          date: eveningNotification,
+          channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
+        },
+      });
+
+      console.log('Ramazan Bayramı arefe bildirimi planlandı: 20:00');
+    }
+  }
+
+  // Kurban Bayramı arefesi için bildirim planla
+  const kurbanArefeDate = new Date(KURBAN_BAYRAMI_2026.start);
+  kurbanArefeDate.setDate(kurbanArefeDate.getDate() - 1);
+  const isKurbanArefe = today.getTime() === new Date(kurbanArefeDate.getFullYear(), kurbanArefeDate.getMonth(), kurbanArefeDate.getDate()).getTime();
+
+  if (isKurbanArefe) {
+    const eveningNotification = new Date(today);
+    eveningNotification.setHours(20, 0, 0, 0);
+
+    if (eveningNotification > now) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Kurban Bayramı Arefesi Mübarek Olsun! 🌙',
+          body: 'Yarın Kurban Bayramı! Dualarınız kabul olsun.',
+          sound: true,
+          data: { type: 'kurban-arefe-greeting' },
+        },
+        trigger: {
+          date: eveningNotification,
+          channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
+        },
+      });
+
+      console.log('Kurban Bayramı arefe bildirimi planlandı: 20:00');
+    }
+  }
 }
