@@ -167,7 +167,7 @@ export interface Settings {
   language: 'tr' | 'en' | 'ar';
   theme: 'light' | 'dark' | 'system';
   notificationsEnabled: boolean;
-  notificationMinutesBefore: number;
+  ezanSoundEnabled: boolean; // Bildirimde ezan sesi çalsın mı
   selectedMeal: 'tr.diyanet' | 'tr.ates' | 'tr.yazir';
   location: Location | null;
   locationMode: 'auto' | 'manual';

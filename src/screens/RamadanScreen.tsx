@@ -880,7 +880,7 @@ const styles = StyleSheet.create({
   statusCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 152, 0, 0.15)',
+    backgroundColor: 'rgba(255, 152, 0, 0.35)',
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
     padding: spacing.md,
@@ -888,7 +888,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   activeRamadan: {
-    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    backgroundColor: 'rgba(76, 175, 80, 0.35)',
   },
   statusIcon: {
     width: 56,

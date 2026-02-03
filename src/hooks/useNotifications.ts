@@ -114,7 +114,7 @@ export function useNotifications(): UseNotificationsResult {
   const notificationListener = useRef<any>();
   const responseListener = useRef<any>();
 
-  const { notificationsEnabled, notificationMinutesBefore } = useSettingsStore();
+  const { notificationsEnabled, ezanSoundEnabled } = useSettingsStore();
 
   useEffect(() => {
     // Bildirim listener'larını kur
@@ -148,8 +148,18 @@ export function useNotifications(): UseNotificationsResult {
 
     // Android için kanalları oluştur
     if (Platform.OS === 'android') {
+      // Namaz vakti bildirimleri için kanal (ezan sesli)
       await Notifications.setNotificationChannelAsync('prayer-times', {
         name: 'Namaz Vakitleri',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#1B5E20',
+        sound: 'ezan.mp3', // Özel ezan sesi
+      });
+
+      // Sessiz namaz vakti bildirimleri için kanal
+      await Notifications.setNotificationChannelAsync('prayer-times-silent', {
+        name: 'Namaz Vakitleri (Sessiz)',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#1B5E20',
@@ -192,32 +202,30 @@ export function useNotifications(): UseNotificationsResult {
 
       const [hours, minutes] = prayerTimes[prayer].split(':').map(Number);
 
-      // Bugün için tarih oluştur
+      // Bugün için tarih oluştur - tam namaz vaktinde
       const prayerDate = new Date(now);
       prayerDate.setHours(hours, minutes, 0, 0);
 
-      // Bildirim zamanını hesapla (dakika önce)
-      const notificationDate = new Date(prayerDate.getTime() - notificationMinutesBefore * 60 * 1000);
-
-      // Eğer zaman geçmişse, bildirimi planlama
-      if (notificationDate > now) {
+      // Eğer vakit geçmişse, bildirimi planlama
+      if (prayerDate > now) {
         const prayerName = PRAYER_NAMES[prayer];
 
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: `${prayerName} Vakti`,
-            body: notificationMinutesBefore > 0
-              ? `${prayerName} vaktine ${notificationMinutesBefore} dakika kaldı`
-              : `${prayerName} vakti girdi`,
-            sound: true,
-            data: { prayer },
+            title: `${prayerName} Vakti Girdi`,
+            body: `${prayerName} namazının vakti geldi. Haydi namaza!`,
+            sound: ezanSoundEnabled ? 'ezan.mp3' : 'default',
+            data: { prayer, withEzan: ezanSoundEnabled },
           },
           trigger: {
-            date: notificationDate,
+            date: prayerDate,
+            channelId: Platform.OS === 'android'
+              ? (ezanSoundEnabled ? 'prayer-times' : 'prayer-times-silent')
+              : undefined,
           },
         });
 
-        console.log(`${prayerName} bildirimi planlandı: ${notificationDate.toLocaleTimeString()}`);
+        console.log(`${prayerName} bildirimi planlandı: ${prayerDate.toLocaleTimeString()}`);
       }
     }
   };

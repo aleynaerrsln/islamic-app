@@ -28,8 +28,8 @@ export function SettingsScreen() {
     setTheme,
     notificationsEnabled,
     setNotificationsEnabled,
-    notificationMinutesBefore,
-    setNotificationMinutesBefore,
+    ezanSoundEnabled,
+    setEzanSoundEnabled,
     selectedMeal,
     setSelectedMeal,
     location,
@@ -113,7 +113,7 @@ export function SettingsScreen() {
           <List.Subheader>Bildirimler</List.Subheader>
           <List.Item
             title="Namaz Vakti Bildirimleri"
-            description="Her namaz vakti için bildirim al"
+            description="Her namaz vakti girdiğinde bildirim al"
             left={(props) => <List.Icon {...props} icon="bell" />}
             right={() => (
               <Switch
@@ -123,37 +123,31 @@ export function SettingsScreen() {
             )}
           />
           {notificationsEnabled && (
-            <View style={styles.notificationOptions}>
-              <Text variant="bodyMedium" style={{ marginBottom: spacing.sm }}>
-                Kaç dakika önce bildirim gelsin?
-              </Text>
-              <RadioButton.Group
-                onValueChange={(value) => setNotificationMinutesBefore(Number(value))}
-                value={String(notificationMinutesBefore)}
-              >
-                <View style={styles.minuteOptions}>
-                  {[0, 5, 10, 15, 30].map((min) => (
-                    <RadioButton.Item
-                      key={min}
-                      label={min === 0 ? 'Tam vakitte' : `${min} dk önce`}
-                      value={String(min)}
-                      style={styles.minuteItem}
-                    />
-                  ))}
-                </View>
-              </RadioButton.Group>
-              <Button
-                mode="outlined"
-                onPress={() => {
-                  sendTestNotification();
-                  Alert.alert('Bildirim', '2 saniye içinde test bildirimi gelecek');
-                }}
-                style={{ marginTop: spacing.md }}
-                icon="bell-ring"
-              >
-                Test Bildirimi Gönder
-              </Button>
-            </View>
+            <>
+              <List.Item
+                title="Ezan Sesi"
+                description="Bildirimde ezan sesi çalsın"
+                left={(props) => <List.Icon {...props} icon="volume-high" />}
+                right={() => (
+                  <Switch
+                    value={ezanSoundEnabled}
+                    onValueChange={setEzanSoundEnabled}
+                  />
+                )}
+              />
+              <View style={styles.notificationOptions}>
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    sendTestNotification();
+                    Alert.alert('Bildirim', '2 saniye içinde test bildirimi gelecek');
+                  }}
+                  icon="bell-ring"
+                >
+                  Test Bildirimi Gönder
+                </Button>
+              </View>
+            </>
           )}
         </List.Section>
 
@@ -300,13 +294,7 @@ const styles = StyleSheet.create({
   },
   notificationOptions: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  minuteOptions: {
-    marginLeft: -spacing.md,
-  },
-  minuteItem: {
-    paddingVertical: 0,
+    paddingBottom: spacing.md,
   },
   backgroundSettingRow: {
     flexDirection: 'row',

@@ -10,7 +10,7 @@ interface SettingsState extends Settings {
   setLanguage: (language: 'tr' | 'en' | 'ar') => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setNotificationsEnabled: (enabled: boolean) => void;
-  setNotificationMinutesBefore: (minutes: number) => void;
+  setEzanSoundEnabled: (enabled: boolean) => void;
   setSelectedMeal: (meal: 'tr.diyanet' | 'tr.ates' | 'tr.yazir') => void;
   setLocation: (location: Location | null) => void;
   setLocationMode: (mode: 'auto' | 'manual') => void;
@@ -34,7 +34,7 @@ const defaultSettings: Settings = {
   language: 'tr',
   theme: 'system',
   notificationsEnabled: true,
-  notificationMinutesBefore: 15,
+  ezanSoundEnabled: true, // Varsayılan olarak ezan sesi açık
   selectedMeal: 'tr.diyanet',
   location: null,
   locationMode: 'auto',
@@ -59,8 +59,8 @@ export const useSettingsStore = create<SettingsState>()(
       setNotificationsEnabled: (enabled) =>
         set({ notificationsEnabled: enabled }),
 
-      setNotificationMinutesBefore: (minutes) =>
-        set({ notificationMinutesBefore: minutes }),
+      setEzanSoundEnabled: (enabled) =>
+        set({ ezanSoundEnabled: enabled }),
 
       setSelectedMeal: (meal) =>
         set({ selectedMeal: meal }),
