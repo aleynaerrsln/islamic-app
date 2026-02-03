@@ -72,5 +72,5 @@ export const BACKGROUND_IMAGES: BackgroundImage[] = [
 ];
 
 // Varsayılan arka plan
-export const DEFAULT_BACKGROUND = 'geometric_gold';
+export const DEFAULT_BACKGROUND = 'blue_mosque';
 export const DEFAULT_OPACITY = 0.85;

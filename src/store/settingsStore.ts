@@ -32,7 +32,7 @@ const defaultBackground: BackgroundSettings = {
 const defaultSettings: Settings = {
   calculationMethod: 13, // Diyanet
   language: 'tr',
-  theme: 'system',
+  theme: 'dark', // Varsayılan olarak koyu mod
   notificationsEnabled: true,
   ezanSoundEnabled: true, // Varsayılan olarak ezan sesi açık
   selectedMeal: 'tr.diyanet',

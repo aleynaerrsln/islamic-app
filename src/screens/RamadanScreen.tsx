@@ -16,7 +16,7 @@ import { BackgroundWrapper } from '../components/BackgroundWrapper';
 import { useSettingsStore } from '../store/settingsStore';
 import { usePrayerStore } from '../store/prayerStore';
 import { getDiyanetMonthlyCalendar } from '../api/diyanet';
-import { useAds } from '../services/adService';
+// import { useAds } from '../services/adService';
 
 const { width } = Dimensions.get('window');
 
@@ -148,7 +148,6 @@ export function RamadanScreen() {
   const { cardOpacity, location } = useSettingsStore();
   // Ana sayfa ile aynı namaz vakitlerini kullan (tutarlılık için)
   const { prayerTimes } = usePrayerStore();
-  const { showInterstitialForAction } = useAds();
   const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
   const [currentTime, setCurrentTime] = useState(new Date());
   const [fastingRecord, setFastingRecord] = useState<FastingRecord>({});
@@ -160,15 +159,13 @@ export function RamadanScreen() {
   const [imsakiyeData, setImsakiyeData] = useState<ImsakiyeDay[]>([]);
   const [imsakiyeLoading, setImsakiyeLoading] = useState(false);
 
-  // Teravih modalını aç (reklam göstererek)
-  const openTeravihModal = async () => {
-    await showInterstitialForAction('teravih_guide');
+  // Teravih modalını aç
+  const openTeravihModal = () => {
     setShowTeravihModal(true);
   };
 
-  // İmsakiye modalını aç (reklam göstererek)
-  const openImsakiyeModal = async () => {
-    await showInterstitialForAction('imsakiye_calendar');
+  // İmsakiye modalını aç
+  const openImsakiyeModal = () => {
     setShowImsakiyeModal(true);
   };
 

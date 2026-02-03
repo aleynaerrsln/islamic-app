@@ -14,7 +14,6 @@
     },
     "ios": {
       "bundleIdentifier": "com.namazvakti.app",
-      "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": [
@@ -31,7 +30,6 @@
     },
     "android": {
       "package": "com.namazvakti.app",
-      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -50,7 +48,6 @@
     },
     "plugins": [
       "expo-font",
-      "@react-native-firebase/app",
       [
         "expo-notifications",
         {
@@ -63,13 +60,6 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Yakındaki camileri bulmak için konumunuza ihtiyacımız var."
-        }
-      ],
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-4083708100535757~3007768564",
-          "iosAppId": "ca-app-pub-4083708100535757~3007768564"
         }
       ]
     ],

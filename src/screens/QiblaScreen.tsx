@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import { Text, ActivityIndicator, useTheme } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useLocation } from '../hooks/useLocation';
 import { useQibla } from '../hooks/useQibla';
 import { spacing, borderRadius } from '../theme';

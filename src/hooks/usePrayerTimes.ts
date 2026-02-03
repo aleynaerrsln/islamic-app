@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePrayerStore, calculateCurrentAndNextPrayer } from '../store/prayerStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { getPrayerTimesByCoordinates } from '../api/aladhan';
+import { getDiyanetPrayerTimes, formatAllPrayerTimes } from '../api/diyanet';
 import type { PrayerTimes, Location } from '../types';
 
 interface UsePrayerTimesResult {
@@ -35,22 +35,22 @@ export function usePrayerTimes(location: Location | null): UsePrayerTimesResult 
     lastUpdated,
   } = usePrayerStore();
 
-  const { calculationMethod } = useSettingsStore();
-
   const fetchPrayerTimes = useCallback(async () => {
     if (!location) return;
 
     setLoading(true);
 
     try {
-      const response = await getPrayerTimesByCoordinates(
+      // Diyanet API'sini kullan
+      const response = await getDiyanetPrayerTimes(
         location.latitude,
-        location.longitude,
-        calculationMethod
+        location.longitude
       );
 
       if (response.code === 200) {
-        setPrayerTimes(response.data.timings);
+        // Vakitleri formatla (saat:dakika formatına çevir)
+        const formattedTimes = formatAllPrayerTimes(response.data.timings);
+        setPrayerTimes(formattedTimes);
         setHijriDate(response.data.date.hijri);
         updateLastUpdated();
       } else {
@@ -62,20 +62,36 @@ export function usePrayerTimes(location: Location | null): UsePrayerTimesResult 
     } finally {
       setLoading(false);
     }
-  }, [location, calculationMethod, setPrayerTimes, setHijriDate, updateLastUpdated, setLoading, setError]);
+  }, [location, setPrayerTimes, setHijriDate, updateLastUpdated, setLoading, setError]);
 
   // Konum değiştiğinde veya cache eskimişse yenile
   useEffect(() => {
     if (!location) return;
 
-    // Cache kontrolü (6 saat)
+    // Cache kontrolü (3 saat - daha sık güncelleme)
     const shouldRefresh = !lastUpdated ||
-      (Date.now() - new Date(lastUpdated).getTime() > 6 * 60 * 60 * 1000);
+      (Date.now() - new Date(lastUpdated).getTime() > 3 * 60 * 60 * 1000);
 
     if (shouldRefresh || !prayerTimes) {
       fetchPrayerTimes();
     }
-  }, [location, calculationMethod]);
+  }, [location]);
+
+  // Gece yarısında otomatik yenile (yeni gün için vakitler)
+  useEffect(() => {
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    const timeUntilMidnight = midnight.getTime() - now.getTime();
+
+    const midnightTimer = setTimeout(() => {
+      if (location) {
+        fetchPrayerTimes();
+      }
+    }, timeUntilMidnight + 1000); // Gece yarısından 1 saniye sonra
+
+    return () => clearTimeout(midnightTimer);
+  }, [location, fetchPrayerTimes]);
 
   // Mevcut ve sonraki namazı hesapla
   useEffect(() => {

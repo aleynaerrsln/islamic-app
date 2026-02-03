@@ -13,7 +13,7 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { getAllSurahs } from '../api/quran';
 import { spacing, borderRadius } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
-import { BannerAdWrapper } from '../components/BannerAdWrapper';
+// import { BannerAdWrapper } from '../components/BannerAdWrapper';
 
 interface Surah {
   number: number;
@@ -156,11 +156,6 @@ export function QuranScreen() {
           value={searchQuery}
           style={styles.searchBar}
         />
-
-        {/* Banner Reklam */}
-        <View style={styles.adContainer}>
-          <BannerAdWrapper type="QURAN" />
-        </View>
 
         {/* Sure listesi */}
         <FlatList

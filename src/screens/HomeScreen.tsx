@@ -20,9 +20,10 @@ import {
 } from '../utils/contextAwareContent';
 import { spacing, borderRadius } from '../theme';
 import { HIJRI_MONTHS, Location } from '../types';
-import { useAnalytics, AnalyticsEvents } from '../hooks/useAnalytics';
-import { BannerAdWrapper } from '../components/BannerAdWrapper';
-import { useAds } from '../services/adService';
+// Firebase ve AdMob geçici olarak devre dışı - crash testi
+// import { useAnalytics, AnalyticsEvents } from '../hooks/useAnalytics';
+// import { BannerAdWrapper } from '../components/BannerAdWrapper';
+// import { useAds } from '../services/adService';
 
 export function HomeScreen() {
   const theme = useTheme();
@@ -51,34 +52,15 @@ export function HomeScreen() {
 
   const { calculationMethod, setLocation: saveLocation, cardOpacity } = useSettingsStore();
   const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
-  const { logScreenView, logLocationChanged, logEvent } = useAnalytics();
-  const { showInterstitialForAction, showTimeTriggerAd } = useAds();
 
-  // Aylık takvimi aç (reklam göstererek)
-  const openMonthlyCalendar = async () => {
-    await showInterstitialForAction('monthly_calendar');
+  // Aylık takvimi aç
+  const openMonthlyCalendar = () => {
     setMonthlyModalVisible(true);
   };
-
-  // Ekran görüntüleme analytics
-  useEffect(() => {
-    logScreenView('HomeScreen');
-  }, []);
-
-  // 1 dakika kullanım sonrası zaman bazlı reklam tetikleyici
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      showTimeTriggerAd();
-    }, 65000); // 65 saniye (servis zaten 60 saniye kontrolü yapıyor)
-
-    return () => clearTimeout(timer);
-  }, []);
 
   // Konum değiştiğinde kaydet ve yenile
   const handleLocationSelect = async (newLocation: Location) => {
     saveLocation(newLocation);
-    // Analytics - Konum değişikliği
-    logLocationChanged(newLocation.city || 'Unknown', false);
     // Namaz vakitlerini yenile
     setTimeout(() => {
       refresh();
@@ -260,11 +242,6 @@ export function HomeScreen() {
           onExpandPress={() => setEsmaModalVisible(true)}
         />
 
-        {/* Banner Reklam */}
-        <View style={styles.adContainer}>
-          <BannerAdWrapper type="HOME" />
-        </View>
-
         {/* Alt boşluk */}
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -337,11 +314,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.6)',
     marginTop: 1,
-  },
-  adContainer: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
-    alignItems: 'center',
   },
 });

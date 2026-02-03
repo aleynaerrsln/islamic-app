@@ -148,13 +148,18 @@ export function useNotifications(): UseNotificationsResult {
 
     // Android için kanalları oluştur
     if (Platform.OS === 'android') {
-      // Namaz vakti bildirimleri için kanal (ezan sesli)
-      await Notifications.setNotificationChannelAsync('prayer-times', {
-        name: 'Namaz Vakitleri',
-        importance: Notifications.AndroidImportance.HIGH,
+      // Eski kanalları sil (önbellek sorunu için)
+      await Notifications.deleteNotificationChannelAsync('prayer-times').catch(() => {});
+
+      // Namaz vakti bildirimleri için kanal (ezan sesli) - v2 ile yeni kanal
+      await Notifications.setNotificationChannelAsync('prayer-times-ezan', {
+        name: 'Namaz Vakitleri (Ezan Sesli)',
+        importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#1B5E20',
         sound: 'ezan.mp3', // Özel ezan sesi
+        enableVibrate: true,
+        showBadge: true,
       });
 
       // Sessiz namaz vakti bildirimleri için kanal
@@ -218,9 +223,10 @@ export function useNotifications(): UseNotificationsResult {
             data: { prayer, withEzan: ezanSoundEnabled },
           },
           trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
             date: prayerDate,
             channelId: Platform.OS === 'android'
-              ? (ezanSoundEnabled ? 'prayer-times' : 'prayer-times-silent')
+              ? (ezanSoundEnabled ? 'prayer-times-ezan' : 'prayer-times-silent')
               : undefined,
           },
         });
@@ -244,15 +250,88 @@ export function useNotifications(): UseNotificationsResult {
 }
 
 // Test bildirimi gönder
-export async function sendTestNotification(): Promise<void> {
+export async function sendTestNotification(withEzan: boolean = false): Promise<void> {
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Test Bildirimi',
-      body: 'Bildirimler çalışıyor!',
+      title: withEzan ? 'Ezan Sesi Testi 🕌' : 'Test Bildirimi',
+      body: withEzan ? 'Ezan sesi bu şekilde çalacak!' : 'Bildirimler çalışıyor!',
+      sound: withEzan ? 'ezan.mp3' : 'default',
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 2,
+      channelId: Platform.OS === 'android'
+        ? (withEzan ? 'prayer-times-ezan' : 'prayer-times-silent')
+        : undefined,
+    },
+  });
+}
+
+// Ramazan motivasyon bildirimi testi
+export async function sendTestRamadanMotivation(): Promise<void> {
+  const randomIndex = Math.floor(Math.random() * RAMADAN_MOTIVATION_MESSAGES.length);
+  const message = RAMADAN_MOTIVATION_MESSAGES[randomIndex];
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: message.title,
+      body: message.body,
       sound: true,
     },
     trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
       seconds: 2,
+      channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
+    },
+  });
+}
+
+// İftar hatırlatma bildirimi testi
+export async function sendTestIftarReminder(): Promise<void> {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'İftara 1 Saat Kaldı! 🌙',
+      body: 'Biraz daha sabret, iftar vakti yaklaşıyor. Sofranı hazırlamaya başlayabilirsin.',
+      sound: true,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 2,
+      channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
+    },
+  });
+}
+
+// Ramazan Bayramı bildirimi testi
+export async function sendTestRamazanBayrami(): Promise<void> {
+  const message = EID_MESSAGES[0];
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: message.title,
+      body: message.body,
+      sound: true,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 2,
+      channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
+    },
+  });
+}
+
+// Kurban Bayramı bildirimi testi
+export async function sendTestKurbanBayrami(): Promise<void> {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: KURBAN_BAYRAMI_MESSAGE.title,
+      body: KURBAN_BAYRAMI_MESSAGE.body,
+      sound: true,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 2,
+      channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
     },
   });
 }
@@ -299,6 +378,7 @@ export async function scheduleRamadanMotivationNotifications(): Promise<void> {
         data: { type: 'ramadan-motivation', day: dayOfRamadan },
       },
       trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: noonNotification,
         channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
       },
@@ -326,6 +406,7 @@ export async function scheduleRamadanMotivationNotifications(): Promise<void> {
         data: { type: 'ramadan-motivation', day: tomorrowDayOfRamadan },
       },
       trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: tomorrowNoon,
         channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
       },
@@ -357,6 +438,7 @@ export async function scheduleIftarReminderNotification(iftarTime: string): Prom
         data: { type: 'iftar-reminder' },
       },
       trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: reminderDate,
         channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
       },
@@ -403,6 +485,7 @@ export async function scheduleEidNotifications(): Promise<void> {
           data: { type: 'ramazan-bayrami-greeting' },
         },
         trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: morningNotification,
           channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
         },
@@ -426,6 +509,7 @@ export async function scheduleEidNotifications(): Promise<void> {
           data: { type: 'kurban-bayrami-greeting' },
         },
         trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: morningNotification,
           channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
         },
@@ -453,6 +537,7 @@ export async function scheduleEidNotifications(): Promise<void> {
           data: { type: 'ramazan-arefe-greeting' },
         },
         trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: eveningNotification,
           channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
         },
@@ -480,6 +565,7 @@ export async function scheduleEidNotifications(): Promise<void> {
           data: { type: 'kurban-arefe-greeting' },
         },
         trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: eveningNotification,
           channelId: Platform.OS === 'android' ? 'ramadan-motivation' : undefined,
         },

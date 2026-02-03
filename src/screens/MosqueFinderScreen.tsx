@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { spacing } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';

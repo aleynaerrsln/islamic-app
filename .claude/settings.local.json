@@ -6,7 +6,18 @@
       "Bash(git remote add:*)",
       "Bash(git push:*)",
       "Bash(wc:*)",
-      "Bash(xargs basename:*)"
+      "Bash(xargs basename:*)",
+      "Bash(npm install:*)",
+      "Bash(npx eas build:*)",
+      "Bash(adb logcat:*)",
+      "Bash(eas build:list:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: New Architecture devre dışı bırakıldı\n\nFirebase ve AdMob kütüphaneleri yeni mimariyle uyumsuz olabilir.\nnewArchEnabled: false yapılarak crash sorunu çözülmeye çalışılıyor.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "WebFetch(domain:expo.dev)",
+      "Bash(npx eas:*)",
+      "WebFetch(domain:job-logs.eascdn.net)",
+      "Bash(where:*)",
+      "Bash(where convert)"
     ]
   }
 }

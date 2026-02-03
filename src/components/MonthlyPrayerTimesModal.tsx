@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Text } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { spacing, borderRadius } from '../theme';
 import { getMonthlyCalendar } from '../api/aladhan';
 import type { Location } from '../types';

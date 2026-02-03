@@ -24,7 +24,7 @@ import { CALCULATION_METHODS, MEAL_OPTIONS } from '../types';
 import { spacing, borderRadius } from '../theme';
 import { BackgroundImagePicker } from '../components/BackgroundImagePicker';
 import { BACKGROUND_IMAGES, SOLID_COLORS } from '../data/backgroundImages';
-import { BannerAdWrapper } from '../components/BannerAdWrapper';
+// import { BannerAdWrapper } from '../components/BannerAdWrapper';
 
 // Destek bilgileri
 const SUPPORT_EMAIL = 'namazvakti.destek@gmail.com';
@@ -395,11 +395,6 @@ export function SettingsScreen() {
             left={(props) => <List.Icon {...props} icon="information" />}
           />
         </List.Section>
-
-        {/* Banner Reklam */}
-        <View style={styles.adContainer}>
-          <BannerAdWrapper type="SETTINGS" />
-        </View>
 
         {/* Alt boşluk */}
         <View style={{ height: 100 }} />

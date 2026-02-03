@@ -17,11 +17,12 @@ import {
   IconButton,
   Switch,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Circle } from 'react-native-svg';
 import { spacing, borderRadius } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
+// import { useAnalytics, AnalyticsEvents } from '../hooks/useAnalytics';
 
 const { width } = Dimensions.get('window');
 

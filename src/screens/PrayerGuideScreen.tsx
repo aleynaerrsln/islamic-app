@@ -19,7 +19,7 @@ import {
 import { spacing, borderRadius } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
 import { useSettingsStore } from '../store/settingsStore';
-import { useAds } from '../services/adService';
+// import { useAds } from '../services/adService';
 
 const { width } = Dimensions.get('window');
 
@@ -33,15 +33,12 @@ export function PrayerGuideScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('main');
   const [selectedBolum, setSelectedBolum] = useState<NamazBolumu | null>(null);
   const [selectedVakitName, setSelectedVakitName] = useState<string>('');
-  const { showInterstitialForAction } = useAds();
 
   const toggleVakit = (vakitId: string) => {
     setExpandedVakit(expandedVakit === vakitId ? null : vakitId);
   };
 
-  const openBolumDetail = async (bolum: NamazBolumu, vakitName: string) => {
-    // Namaz detayı açılırken reklam göster
-    await showInterstitialForAction('prayer_detail');
+  const openBolumDetail = (bolum: NamazBolumu, vakitName: string) => {
     setSelectedBolum(bolum);
     setSelectedVakitName(vakitName);
     setViewMode('detail');
