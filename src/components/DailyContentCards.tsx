@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
@@ -13,10 +13,13 @@ interface DailyAyahCardProps {
   ayahNumber?: number;
 }
 
-export function DailyAyahCard({ arabicText, turkishText, surahName, ayahNumber }: DailyAyahCardProps) {
+export const DailyAyahCard = memo(function DailyAyahCard({ arabicText, turkishText, surahName, ayahNumber }: DailyAyahCardProps) {
   const theme = useTheme();
   const cardOpacity = useSettingsStore((state) => state.cardOpacity);
-  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
+  const cardBgColor = useMemo(() =>
+    theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`,
+    [theme.dark, cardOpacity]
+  );
 
   return (
     <View style={[styles.card, { borderLeftColor: '#4CAF50', backgroundColor: cardBgColor }]}>
@@ -41,7 +44,7 @@ export function DailyAyahCard({ arabicText, turkishText, surahName, ayahNumber }
       </Text>
     </View>
   );
-}
+});
 
 // ===== GÜNÜN HADİSİ =====
 interface DailyHadisCardProps {
@@ -51,10 +54,13 @@ interface DailyHadisCardProps {
   topic: string;
 }
 
-export function DailyHadisCard({ hadisText, arabicText, source, topic }: DailyHadisCardProps) {
+export const DailyHadisCard = memo(function DailyHadisCard({ hadisText, arabicText, source, topic }: DailyHadisCardProps) {
   const theme = useTheme();
   const cardOpacity = useSettingsStore((state) => state.cardOpacity);
-  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
+  const cardBgColor = useMemo(() =>
+    theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`,
+    [theme.dark, cardOpacity]
+  );
 
   return (
     <View style={[styles.card, { borderLeftColor: '#FF9800', backgroundColor: cardBgColor }]}>
@@ -82,7 +88,7 @@ export function DailyHadisCard({ hadisText, arabicText, source, topic }: DailyHa
       </Text>
     </View>
   );
-}
+});
 
 // ===== GÜNÜN ESMASI =====
 interface DailyEsmaCardProps {
@@ -94,10 +100,13 @@ interface DailyEsmaCardProps {
   onExpandPress?: () => void;
 }
 
-export function DailyEsmaCard({ number, arabic, turkish, meaning, color, onExpandPress }: DailyEsmaCardProps) {
+export const DailyEsmaCard = memo(function DailyEsmaCard({ number, arabic, turkish, meaning, color, onExpandPress }: DailyEsmaCardProps) {
   const theme = useTheme();
   const cardOpacity = useSettingsStore((state) => state.cardOpacity);
-  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
+  const cardBgColor = useMemo(() =>
+    theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`,
+    [theme.dark, cardOpacity]
+  );
 
   return (
     <View style={[styles.card, { borderLeftColor: color, backgroundColor: cardBgColor }]}>
@@ -130,7 +139,7 @@ export function DailyEsmaCard({ number, arabic, turkish, meaning, color, onExpan
       </Text>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

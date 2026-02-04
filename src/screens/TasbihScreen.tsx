@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import {
   View,
   StyleSheet,
   Vibration,
-  Pressable,
   Modal,
   TouchableOpacity,
   FlatList,
@@ -22,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Circle } from 'react-native-svg';
 import { spacing, borderRadius } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
+import { BannerAdWrapper } from '../components/BannerAdWrapper';
 // import { useAnalytics, AnalyticsEvents } from '../hooks/useAnalytics';
 
 const { width } = Dimensions.get('window');
@@ -114,12 +114,17 @@ interface Dhikr {
   isDefault: boolean;
 }
 
-// Progress Ring Component
-const ProgressRing = ({ progress }: { progress: number }) => {
+// Progress Ring Component - Memoized
+const ProgressRing = memo(({ progress }: { progress: number }) => {
   const strokeDashoffset = CIRCUMFERENCE * (1 - Math.min(progress, 1));
 
   return (
-    <Svg width={COUNTER_SIZE} height={COUNTER_SIZE} style={styles.progressSvg}>
+    <Svg
+      width={COUNTER_SIZE}
+      height={COUNTER_SIZE}
+      style={styles.progressSvg}
+      pointerEvents="none"
+    >
       {/* Arka plan çember */}
       <Circle
         cx={COUNTER_SIZE / 2}
@@ -145,7 +150,7 @@ const ProgressRing = ({ progress }: { progress: number }) => {
       />
     </Svg>
   );
-};
+});
 
 export function TasbihScreen() {
   const theme = useTheme();
@@ -187,11 +192,24 @@ export function TasbihScreen() {
     saveDhikrs();
   }, [dhikrs]);
 
-  // Geçmişi kaydet
+  // Debounced history save - her değişiklikte değil, 2 sn bekliyoruz
+  const saveHistoryTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (dhikrHistory.length > 0) {
-      saveHistory();
+      // Önceki timeout'u temizle
+      if (saveHistoryTimeout.current) {
+        clearTimeout(saveHistoryTimeout.current);
+      }
+      // 2 saniye sonra kaydet
+      saveHistoryTimeout.current = setTimeout(() => {
+        saveHistory();
+      }, 2000);
     }
+    return () => {
+      if (saveHistoryTimeout.current) {
+        clearTimeout(saveHistoryTimeout.current);
+      }
+    };
   }, [dhikrHistory]);
 
   const loadDhikrs = async () => {
@@ -503,16 +521,20 @@ export function TasbihScreen() {
         </View>
 
         {/* Sayaç */}
-        <Pressable onPress={handlePress} style={styles.counterWrapper}>
+        <TouchableOpacity
+          onPress={handlePress}
+          style={styles.counterWrapper}
+          activeOpacity={0.8}
+        >
           {/* Progress Ring */}
           <ProgressRing progress={progress} />
 
           {/* İç daire - sayı göstergesi */}
-          <View style={styles.counterInner}>
+          <View style={styles.counterInner} pointerEvents="none">
             <Text style={styles.countText}>{selectedDhikr.count}</Text>
             <Text style={styles.targetText}>/ {selectedDhikr.target}</Text>
           </View>
-        </Pressable>
+        </TouchableOpacity>
 
         {/* Tamamlandı mesajı */}
         {isCompleted && (
@@ -534,6 +556,9 @@ export function TasbihScreen() {
             <Icon name="refresh" size={28} color="#fff" />
           </TouchableOpacity>
         </View>
+
+        {/* Banner Reklam - Altta */}
+        <BannerAdWrapper type="TASBIH" position="bottom" />
 
         {/* Tek Modal - Liste, Ekle, Düzenle görünümleri */}
         <Modal

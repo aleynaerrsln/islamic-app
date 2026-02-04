@@ -87,13 +87,14 @@ export function useLocation(): UseLocationResult {
     }
   }, [savedLocation, locationMode]);
 
-  // İzin durumunu kontrol et
+  // İzin durumunu kontrol et (geciktirilmiş - hızlı açılış için)
   useEffect(() => {
-    const checkPermission = async () => {
+    // 500ms bekle - UI önce render edilsin
+    const timer = setTimeout(async () => {
       const { status } = await ExpoLocation.getForegroundPermissionsAsync();
       setHasPermission(status === 'granted');
-    };
-    checkPermission();
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   return {

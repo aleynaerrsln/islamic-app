@@ -19,7 +19,7 @@ import {
 import { spacing, borderRadius } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
 import { useSettingsStore } from '../store/settingsStore';
-// import { useAds } from '../services/adService';
+import { useAds } from '../services/adService';
 
 const { width } = Dimensions.get('window');
 
@@ -34,14 +34,20 @@ export function PrayerGuideScreen() {
   const [selectedBolum, setSelectedBolum] = useState<NamazBolumu | null>(null);
   const [selectedVakitName, setSelectedVakitName] = useState<string>('');
 
+  // Reklamlar
+  const { showInterstitialForAction } = useAds();
+
   const toggleVakit = (vakitId: string) => {
     setExpandedVakit(expandedVakit === vakitId ? null : vakitId);
   };
 
   const openBolumDetail = (bolum: NamazBolumu, vakitName: string) => {
+    // Detay hemen açılsın, reklam arka planda denensin (non-blocking)
     setSelectedBolum(bolum);
     setSelectedVakitName(vakitName);
     setViewMode('detail');
+    // Reklam fire-and-forget (beklemeden)
+    showInterstitialForAction('prayer_guide_detail');
   };
 
   const getTurColor = (tur: 'sunnet' | 'farz' | 'vitir') => {

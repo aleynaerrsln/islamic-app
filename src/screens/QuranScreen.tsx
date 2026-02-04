@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import {
   Text,
@@ -13,7 +13,7 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { getAllSurahs } from '../api/quran';
 import { spacing, borderRadius } from '../theme';
 import { BackgroundWrapper } from '../components/BackgroundWrapper';
-// import { BannerAdWrapper } from '../components/BannerAdWrapper';
+import { useAds } from '../services/adService';
 
 interface Surah {
   number: number;
@@ -51,13 +51,69 @@ const SURAH_NAMES_TR: { [key: number]: string } = {
   111: 'Tebbet', 112: 'İhlas', 113: 'Felak', 114: 'Nas',
 };
 
+// FlatList optimizasyonları - render dışında
+const ITEM_HEIGHT = 80; // Yaklaşık kart yüksekliği
+const keyExtractor = (item: Surah) => item.number.toString();
+const getItemLayout = (_: any, index: number) => ({
+  length: ITEM_HEIGHT,
+  offset: ITEM_HEIGHT * index,
+  index,
+});
+
+// Memoized SurahItem bileşeni - gereksiz re-render önler
+const SurahItem = memo(({
+  item,
+  onPress,
+  primaryContainerColor,
+  onPrimaryContainerColor,
+  onSurfaceColor,
+  outlineColor,
+  primaryColor
+}: {
+  item: Surah;
+  onPress: () => void;
+  primaryContainerColor: string;
+  onPrimaryContainerColor: string;
+  onSurfaceColor: string;
+  outlineColor: string;
+  primaryColor: string;
+}) => (
+  <TouchableRipple onPress={onPress}>
+    <Card style={styles.surahCard} mode="outlined">
+      <View style={styles.surahContent}>
+        <View style={[styles.surahNumber, { backgroundColor: primaryContainerColor }]}>
+          <Text variant="titleMedium" style={{ color: onPrimaryContainerColor }}>
+            {item.number}
+          </Text>
+        </View>
+        <View style={styles.surahInfo}>
+          <Text variant="titleMedium" style={{ color: onSurfaceColor }}>
+            {SURAH_NAMES_TR[item.number] || item.englishName}
+          </Text>
+          <Text variant="bodySmall" style={{ color: outlineColor }}>
+            {item.englishNameTranslation} • {item.numberOfAyahs} ayet
+          </Text>
+        </View>
+        <View style={styles.rightSection}>
+          <Text variant="titleLarge" style={[styles.arabicName, { color: primaryColor }]}>
+            {item.name}
+          </Text>
+          <Icon name="chevron-right" size={24} color={outlineColor} />
+        </View>
+      </View>
+    </Card>
+  </TouchableRipple>
+));
+
 export function QuranScreen() {
   const theme = useTheme();
   const navigation = useNavigation<any>();
   const [surahs, setSurahs] = useState<Surah[]>([]);
-  const [filteredSurahs, setFilteredSurahs] = useState<Surah[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Reklamlar
+  const { showInterstitialForAction } = useAds();
 
   useEffect(() => {
     loadSurahs();
@@ -67,7 +123,6 @@ export function QuranScreen() {
     try {
       const response = await getAllSurahs();
       setSurahs(response.data);
-      setFilteredSurahs(response.data);
     } catch (error) {
       console.log('Sureler yüklenemedi');
     } finally {
@@ -75,60 +130,39 @@ export function QuranScreen() {
     }
   };
 
-  const onSearch = (query: string) => {
-    setSearchQuery(query);
-    if (query.trim() === '') {
-      setFilteredSurahs(surahs);
-    } else {
-      const filtered = surahs.filter(
-        (surah) =>
-          SURAH_NAMES_TR[surah.number]?.toLowerCase().includes(query.toLowerCase()) ||
-          surah.englishName.toLowerCase().includes(query.toLowerCase()) ||
-          surah.number.toString() === query
-      );
-      setFilteredSurahs(filtered);
+  // Memoized filtreleme - sadece surahs veya searchQuery değiştiğinde
+  const filteredSurahs = useMemo(() => {
+    if (searchQuery.trim() === '') {
+      return surahs;
     }
-  };
+    const query = searchQuery.toLowerCase();
+    return surahs.filter(
+      (surah) =>
+        SURAH_NAMES_TR[surah.number]?.toLowerCase().includes(query) ||
+        surah.englishName.toLowerCase().includes(query) ||
+        surah.number.toString() === searchQuery
+    );
+  }, [surahs, searchQuery]);
 
-  const renderSurahItem = ({ item }: { item: Surah }) => (
-    <TouchableRipple
-      onPress={() => {
-        navigation.navigate('SurahDetail', {
-          surahNumber: item.number,
-          surahName: SURAH_NAMES_TR[item.number] || item.englishName,
-        });
-      }}
-    >
-      <Card style={styles.surahCard} mode="outlined">
-        <View style={styles.surahContent}>
-          {/* Sure numarası */}
-          <View style={[styles.surahNumber, { backgroundColor: theme.colors.primaryContainer }]}>
-            <Text variant="titleMedium" style={{ color: theme.colors.onPrimaryContainer }}>
-              {item.number}
-            </Text>
-          </View>
+  const handleSurahPress = useCallback((item: Surah) => {
+    navigation.navigate('SurahDetail', {
+      surahNumber: item.number,
+      surahName: SURAH_NAMES_TR[item.number] || item.englishName,
+    });
+    showInterstitialForAction('surah_open');
+  }, [navigation, showInterstitialForAction]);
 
-          {/* Sure bilgileri */}
-          <View style={styles.surahInfo}>
-            <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
-              {SURAH_NAMES_TR[item.number] || item.englishName}
-            </Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.outline }}>
-              {item.englishNameTranslation} • {item.numberOfAyahs} ayet
-            </Text>
-          </View>
-
-          {/* Arapça isim ve ok ikonu */}
-          <View style={styles.rightSection}>
-            <Text variant="titleLarge" style={[styles.arabicName, { color: theme.colors.primary }]}>
-              {item.name}
-            </Text>
-            <Icon name="chevron-right" size={24} color={theme.colors.outline} />
-          </View>
-        </View>
-      </Card>
-    </TouchableRipple>
-  );
+  const renderSurahItem = useCallback(({ item }: { item: Surah }) => (
+    <SurahItem
+      item={item}
+      onPress={() => handleSurahPress(item)}
+      primaryContainerColor={theme.colors.primaryContainer}
+      onPrimaryContainerColor={theme.colors.onPrimaryContainer}
+      onSurfaceColor={theme.colors.onSurface}
+      outlineColor={theme.colors.outline}
+      primaryColor={theme.colors.primary}
+    />
+  ), [handleSurahPress, theme.colors]);
 
   if (isLoading) {
     return (
@@ -152,18 +186,23 @@ export function QuranScreen() {
         {/* Arama */}
         <Searchbar
           placeholder="Sure ara..."
-          onChangeText={onSearch}
+          onChangeText={setSearchQuery}
           value={searchQuery}
           style={styles.searchBar}
         />
 
-        {/* Sure listesi */}
+        {/* Sure listesi - optimized */}
         <FlatList
           data={filteredSurahs}
           renderItem={renderSurahItem}
-          keyExtractor={(item) => item.number.toString()}
+          keyExtractor={keyExtractor}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={15}
+          windowSize={10}
+          initialNumToRender={15}
+          getItemLayout={getItemLayout}
         />
       </View>
     </BackgroundWrapper>

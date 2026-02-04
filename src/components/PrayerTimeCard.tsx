@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
@@ -36,7 +36,39 @@ interface PrayerTimesHorizontalProps {
   onExpandPress?: () => void;
 }
 
-export function PrayerTimesHorizontal({
+// Sabit değerler - render dışında
+const PRAYER_ORDER: (keyof PrayerTimes)[] = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+// Saati formatla (sadece saat:dakika)
+const formatTime = (time: string) => time.split(' ')[0];
+
+// Memoized tek namaz item'ı
+const PrayerItem = memo(({
+  prayer,
+  time,
+  isNext
+}: {
+  prayer: keyof PrayerTimes;
+  time: string;
+  isNext: boolean;
+}) => (
+  <View style={[styles.prayerItem, isNext && styles.nextPrayer]}>
+    <Icon
+      name={PRAYER_ICONS[prayer]}
+      size={32}
+      color={isNext ? '#000' : 'rgba(255,255,255,0.9)'}
+      style={styles.icon}
+    />
+    <Text style={[styles.prayerName, { color: isNext ? '#000' : 'rgba(255,255,255,0.9)' }]}>
+      {PRAYER_NAMES_TR[prayer]}
+    </Text>
+    <Text style={[styles.prayerTime, { color: isNext ? '#000' : '#fff' }, isNext && styles.nextTime]}>
+      {formatTime(time)}
+    </Text>
+  </View>
+));
+
+export const PrayerTimesHorizontal = memo(function PrayerTimesHorizontal({
   prayerTimes,
   currentPrayer,
   nextPrayer,
@@ -47,21 +79,11 @@ export function PrayerTimesHorizontal({
 }: PrayerTimesHorizontalProps) {
   const theme = useTheme();
   const cardOpacity = useSettingsStore((state) => state.cardOpacity);
-  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
 
-  const prayerOrder: (keyof PrayerTimes)[] = [
-    'Fajr',
-    'Sunrise',
-    'Dhuhr',
-    'Asr',
-    'Maghrib',
-    'Isha',
-  ];
-
-  // Saati formatla (sadece saat:dakika)
-  const formatTime = (time: string) => {
-    return time.split(' ')[0];
-  };
+  const cardBgColor = useMemo(() =>
+    theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`,
+    [theme.dark, cardOpacity]
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: cardBgColor }]}>
@@ -96,47 +118,18 @@ export function PrayerTimesHorizontal({
 
       {/* Namaz Vakitleri */}
       <View style={styles.prayerRow}>
-        {prayerOrder.map((prayer) => {
-          const isNext = prayer === nextPrayer;
-
-          return (
-            <View
-              key={prayer}
-              style={[
-                styles.prayerItem,
-                isNext && styles.nextPrayer,
-              ]}
-            >
-              <Icon
-                name={PRAYER_ICONS[prayer]}
-                size={32}
-                color={isNext ? '#000' : 'rgba(255,255,255,0.9)'}
-                style={styles.icon}
-              />
-              <Text
-                style={[
-                  styles.prayerName,
-                  { color: isNext ? '#000' : 'rgba(255,255,255,0.9)' },
-                ]}
-              >
-                {PRAYER_NAMES_TR[prayer]}
-              </Text>
-              <Text
-                style={[
-                  styles.prayerTime,
-                  { color: isNext ? '#000' : '#fff' },
-                  isNext && styles.nextTime,
-                ]}
-              >
-                {formatTime(prayerTimes[prayer])}
-              </Text>
-            </View>
-          );
-        })}
+        {PRAYER_ORDER.map((prayer) => (
+          <PrayerItem
+            key={prayer}
+            prayer={prayer}
+            time={prayerTimes[prayer]}
+            isNext={prayer === nextPrayer}
+          />
+        ))}
       </View>
     </View>
   );
-}
+});
 
 interface PrayerTimesListProps {
   prayerTimes: PrayerTimes;
@@ -148,7 +141,7 @@ interface PrayerTimesListProps {
   onExpandPress?: () => void;
 }
 
-export function PrayerTimesList({
+export const PrayerTimesList = memo(function PrayerTimesList({
   prayerTimes,
   currentPrayer,
   nextPrayer,
@@ -168,7 +161,7 @@ export function PrayerTimesList({
       onExpandPress={onExpandPress}
     />
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

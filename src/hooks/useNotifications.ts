@@ -94,7 +94,8 @@ const RAMADAN_MOTIVATION_MESSAGES = [
 // Bildirim davranışını ayarla
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true, // Yeni API - shouldShowAlert yerine
+    shouldShowList: true,   // Bildirim listesinde göster
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -111,8 +112,8 @@ interface UseNotificationsResult {
 export function useNotifications(): UseNotificationsResult {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [notification, setNotification] = useState<Notifications.Notification | null>(null);
-  const notificationListener = useRef<any>();
-  const responseListener = useRef<any>();
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
 
   const { notificationsEnabled, ezanSoundEnabled } = useSettingsStore();
 
@@ -127,8 +128,13 @@ export function useNotifications(): UseNotificationsResult {
     });
 
     return () => {
-      Notifications.removeNotificationSubscription(notificationListener.current);
-      Notifications.removeNotificationSubscription(responseListener.current);
+      // Yeni expo-notifications API'si: .remove() metodu kullan
+      if (notificationListener.current) {
+        notificationListener.current.remove();
+      }
+      if (responseListener.current) {
+        responseListener.current.remove();
+      }
     };
   }, []);
 
@@ -148,27 +154,42 @@ export function useNotifications(): UseNotificationsResult {
 
     // Android için kanalları oluştur
     if (Platform.OS === 'android') {
-      // Eski kanalları sil (önbellek sorunu için)
-      await Notifications.deleteNotificationChannelAsync('prayer-times').catch(() => {});
+      // TÜM eski kanalları sil - ses değişikliği için yeni kanal gerekiyor
+      const oldChannels = [
+        'prayer-times',
+        'prayer-times-ezan',
+        'prayer-times-silent',
+        'prayer-times-ezan-v3',
+        'prayer-times-silent-v3',
+      ];
+      for (const channel of oldChannels) {
+        await Notifications.deleteNotificationChannelAsync(channel).catch(() => {});
+      }
 
-      // Namaz vakti bildirimleri için kanal (ezan sesli) - v2 ile yeni kanal
-      await Notifications.setNotificationChannelAsync('prayer-times-ezan', {
+      // Namaz vakti bildirimleri için kanal (ezan sesli) - v4 YENI
+      // ÖNEMLI: Kullanıcı uygulamayı silip yeniden yüklemeli veya
+      // Android Ayarlar > Uygulamalar > Bu Uygulama > Bildirimler > Kanalları sıfırla yapmalı
+      await Notifications.setNotificationChannelAsync('namaz-ezan-v4', {
         name: 'Namaz Vakitleri (Ezan Sesli)',
+        description: 'Namaz vakitlerinde ezan sesi ile bildirim',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#1B5E20',
-        sound: 'ezan.mp3', // Özel ezan sesi
+        sound: 'ezan', // raw/ezan.mp3 dosyası
         enableVibrate: true,
         showBadge: true,
+        bypassDnd: true, // Rahatsız etme modunu geç
       });
 
-      // Sessiz namaz vakti bildirimleri için kanal
-      await Notifications.setNotificationChannelAsync('prayer-times-silent', {
-        name: 'Namaz Vakitleri (Sessiz)',
+      // Varsayılan sesli namaz vakti bildirimleri için kanal - v4
+      await Notifications.setNotificationChannelAsync('namaz-default-v4', {
+        name: 'Namaz Vakitleri (Varsayılan Ses)',
+        description: 'Namaz vakitlerinde varsayılan bildirim sesi',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#1B5E20',
         sound: 'default',
+        enableVibrate: true,
       });
 
       // Ramazan motivasyon bildirimleri için kanal
@@ -179,6 +200,8 @@ export function useNotifications(): UseNotificationsResult {
         lightColor: '#4CAF50',
         sound: 'default',
       });
+
+      console.log('Bildirim kanalları oluşturuldu: namaz-ezan-v4, namaz-default-v4');
     }
 
     // Push token al (opsiyonel - Firebase için gerekli)
@@ -219,14 +242,14 @@ export function useNotifications(): UseNotificationsResult {
           content: {
             title: `${prayerName} Vakti Girdi`,
             body: `${prayerName} namazının vakti geldi. Haydi namaza!`,
-            sound: ezanSoundEnabled ? 'ezan.mp3' : 'default',
+            sound: true, // Android'de kanal sesi kullanılır
             data: { prayer, withEzan: ezanSoundEnabled },
           },
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DATE,
             date: prayerDate,
             channelId: Platform.OS === 'android'
-              ? (ezanSoundEnabled ? 'prayer-times-ezan' : 'prayer-times-silent')
+              ? (ezanSoundEnabled ? 'namaz-ezan-v4' : 'namaz-default-v4')
               : undefined,
           },
         });
@@ -251,17 +274,18 @@ export function useNotifications(): UseNotificationsResult {
 
 // Test bildirimi gönder
 export async function sendTestNotification(withEzan: boolean = false): Promise<void> {
+  console.log(`Test bildirimi gönderiliyor, ezan: ${withEzan}, kanal: ${withEzan ? 'namaz-ezan-v4' : 'namaz-default-v4'}`);
   await Notifications.scheduleNotificationAsync({
     content: {
       title: withEzan ? 'Ezan Sesi Testi 🕌' : 'Test Bildirimi',
       body: withEzan ? 'Ezan sesi bu şekilde çalacak!' : 'Bildirimler çalışıyor!',
-      sound: withEzan ? 'ezan.mp3' : 'default',
+      sound: true, // Android'de kanal sesi kullanılır
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
       seconds: 2,
       channelId: Platform.OS === 'android'
-        ? (withEzan ? 'prayer-times-ezan' : 'prayer-times-silent')
+        ? (withEzan ? 'namaz-ezan-v4' : 'namaz-default-v4')
         : undefined,
     },
   });

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { Text, ActivityIndicator, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
@@ -20,10 +20,10 @@ import {
 } from '../utils/contextAwareContent';
 import { spacing, borderRadius } from '../theme';
 import { HIJRI_MONTHS, Location } from '../types';
-// Firebase ve AdMob geçici olarak devre dışı - crash testi
-// import { useAnalytics, AnalyticsEvents } from '../hooks/useAnalytics';
-// import { BannerAdWrapper } from '../components/BannerAdWrapper';
-// import { useAds } from '../services/adService';
+// Firebase Analytics
+import { useAnalytics, AnalyticsEvents } from '../hooks/useAnalytics';
+import { BannerAdWrapper } from '../components/BannerAdWrapper';
+import { useAds } from '../services/adService';
 
 export function HomeScreen() {
   const theme = useTheme();
@@ -51,27 +51,61 @@ export function HomeScreen() {
   const { esma: dailyEsma } = getContextAwareDailyEsma();
 
   const { calculationMethod, setLocation: saveLocation, cardOpacity } = useSettingsStore();
-  const cardBgColor = theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`;
+
+  // Memoized cardBgColor
+  const cardBgColor = useMemo(() =>
+    theme.dark ? `rgba(0,0,0,${cardOpacity})` : `rgba(255,255,255,${cardOpacity})`,
+    [theme.dark, cardOpacity]
+  );
+
+  // Reklamlar
+  const { showInterstitial, preloadAds } = useAds();
+
+  // Analytics
+  const { logScreenView, logEvent } = useAnalytics();
 
   // Aylık takvimi aç
-  const openMonthlyCalendar = () => {
+  const openMonthlyCalendar = useCallback(() => {
     setMonthlyModalVisible(true);
-  };
+  }, []);
 
   // Konum değiştiğinde kaydet ve yenile
-  const handleLocationSelect = async (newLocation: Location) => {
+  const handleLocationSelect = useCallback(async (newLocation: Location) => {
     saveLocation(newLocation);
-    // Namaz vakitlerini yenile
-    setTimeout(() => {
-      refresh();
-    }, 100);
-  };
+    setTimeout(() => refresh(), 100);
+  }, [saveLocation, refresh]);
   const { requestPermission, schedulePrayerNotifications } = useNotifications();
 
-  // Bildirim izni ve günlük ayet
+  // Bildirim izni, günlük ayet ve reklamları önceden yükle
+  // Geciktirilmiş - UI önce render edilsin (hızlı açılış)
   useEffect(() => {
-    requestPermission();
-    loadDailyAyah();
+    // Analytics - ekran görüntüleme
+    logScreenView('HomeScreen');
+
+    const timer = setTimeout(() => {
+      requestPermission();
+      loadDailyAyah();
+      // Reklamları yükle (60 sn sonra hazır olsun)
+      preloadAds();
+    }, 300); // 300ms sonra başlat
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 60 saniye sonra interstitial reklam göster
+  useEffect(() => {
+    const tryShowAd = async (retries = 3) => {
+      console.log('Interstitial reklam deneniyor...');
+      const shown = await showInterstitial();
+      if (!shown && retries > 0) {
+        console.log(`Reklam hazır değil, ${retries} deneme kaldı...`);
+        setTimeout(() => tryShowAd(retries - 1), 5000);
+      } else {
+        console.log('Interstitial reklam gösterildi mi:', shown);
+      }
+    };
+
+    const timer = setTimeout(() => tryShowAd(), 60000); // 60 saniye (1 dakika)
+    return () => clearTimeout(timer);
   }, []);
 
   // Namaz vakitleri yüklenince bildirimleri planla
@@ -143,8 +177,9 @@ export function HomeScreen() {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // Yükleniyor durumu
-  if (locationLoading || prayerLoading) {
+  // Yükleniyor durumu - sadece cache yoksa göster (hızlı açılış için)
+  // Cache varsa UI hemen açılır, arka planda güncelleme yapılır
+  if ((locationLoading || prayerLoading) && !prayerTimes && !location) {
     return (
       <BackgroundWrapper>
         <View style={styles.centered}>
@@ -178,6 +213,9 @@ export function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
+        {/* Banner Reklam - En Üstte */}
+        <BannerAdWrapper type="HOME" />
+
         {/* Konum Header */}
         <TouchableOpacity
           style={[styles.locationHeader, { backgroundColor: cardBgColor }]}
@@ -246,27 +284,33 @@ export function HomeScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Aylık Namaz Vakitleri Modal */}
-      <MonthlyPrayerTimesModal
-        visible={monthlyModalVisible}
-        onClose={() => setMonthlyModalVisible(false)}
-        location={location}
-        calculationMethod={calculationMethod}
-      />
+      {/* Aylık Namaz Vakitleri Modal - Lazy render */}
+      {monthlyModalVisible && (
+        <MonthlyPrayerTimesModal
+          visible={monthlyModalVisible}
+          onClose={() => setMonthlyModalVisible(false)}
+          location={location}
+          calculationMethod={calculationMethod}
+        />
+      )}
 
-      {/* Esma-ül Hüsna Modal */}
-      <EsmaUlHusnaModal
-        visible={esmaModalVisible}
-        onClose={() => setEsmaModalVisible(false)}
-      />
+      {/* Esma-ül Hüsna Modal - Lazy render */}
+      {esmaModalVisible && (
+        <EsmaUlHusnaModal
+          visible={esmaModalVisible}
+          onClose={() => setEsmaModalVisible(false)}
+        />
+      )}
 
-      {/* Konum Seçim Modal */}
-      <LocationPickerModal
-        visible={locationModalVisible}
-        onClose={() => setLocationModalVisible(false)}
-        onLocationSelect={handleLocationSelect}
-        currentLocation={location}
-      />
+      {/* Konum Seçim Modal - Lazy render */}
+      {locationModalVisible && (
+        <LocationPickerModal
+          visible={locationModalVisible}
+          onClose={() => setLocationModalVisible(false)}
+          onLocationSelect={handleLocationSelect}
+          currentLocation={location}
+        />
+      )}
     </BackgroundWrapper>
   );
 }
@@ -285,7 +329,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: spacing.md,
-    marginTop: 50,
+    marginTop: spacing.xs,
     marginBottom: spacing.xs,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,

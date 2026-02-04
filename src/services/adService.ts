@@ -7,6 +7,8 @@ export const AD_UNIT_IDS = {
   BANNER_HOME: __DEV__ ? 'ca-app-pub-3940256099942544/6300978111' : 'ca-app-pub-4083708100535757/6607994429',
   BANNER_QURAN: __DEV__ ? 'ca-app-pub-3940256099942544/6300978111' : 'ca-app-pub-4083708100535757/2041628680',
   BANNER_SETTINGS: __DEV__ ? 'ca-app-pub-3940256099942544/6300978111' : 'ca-app-pub-4083708100535757/4129278541',
+  BANNER_RAMADAN: __DEV__ ? 'ca-app-pub-3940256099942544/6300978111' : 'ca-app-pub-4083708100535757/6607994429',
+  BANNER_TASBIH: __DEV__ ? 'ca-app-pub-3940256099942544/6300978111' : 'ca-app-pub-4083708100535757/6607994429',
 
   // Geçiş (Interstitial) reklamları
   INTERSTITIAL: __DEV__ ? 'ca-app-pub-3940256099942544/1033173712' : 'ca-app-pub-4083708100535757/6196496116',
@@ -386,6 +388,8 @@ export const rewardedAdService = new RewardedAdService();
 // Hook for easy access
 export function useAds() {
   return {
+    // Reklamları önceden yükle (uygulama başlangıcında çağır)
+    preloadAds: () => interstitialAdService.initialize(),
     // Eylem bazlı reklam gösterimi
     showInterstitialForAction: (action: string) => interstitialAdService.showForAction(action),
     // Zaman bazlı reklam gösterimi

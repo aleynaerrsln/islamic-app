@@ -113,7 +113,7 @@ export function MonthlyPrayerTimesModal({
       );
 
       if (response.data && Array.isArray(response.data)) {
-        setMonthlyData(response.data);
+        setMonthlyData(response.data as unknown as DayPrayerTimes[]);
       } else {
         setError('Veri formatı hatalı');
       }

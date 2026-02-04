@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme, Text } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -19,6 +20,17 @@ import { MoreMenuModal } from '../components/MoreMenuModal';
 import { spacing } from '../theme';
 
 const Tab = createBottomTabNavigator();
+const QuranStack = createNativeStackNavigator();
+
+// Quran Stack Navigator - Sure listesi ve detay sayfası
+function QuranStackNavigator() {
+  return (
+    <QuranStack.Navigator screenOptions={{ headerShown: false }}>
+      <QuranStack.Screen name="QuranList" component={QuranScreen} />
+      <QuranStack.Screen name="SurahDetail" component={SurahDetailScreen} />
+    </QuranStack.Navigator>
+  );
+}
 
 // Placeholder screen for "More" tab
 function MoreScreen() {
@@ -194,7 +206,7 @@ export function TabNavigator() {
 
       <Tab.Screen
         name="Quran"
-        component={QuranScreen}
+        component={QuranStackNavigator}
         options={{
           title: "Kur'an-ı Kerim",
           headerShown: false,
@@ -272,16 +284,6 @@ export function TabNavigator() {
         }}
       />
 
-      {/* Detail screens - accessible via navigation */}
-      <Tab.Screen
-        name="SurahDetail"
-        component={SurahDetailScreen}
-        options={{
-          title: 'Sure Detay',
-          headerShown: false,
-          tabBarButton: () => null, // Hide from tab bar
-        }}
-      />
     </Tab.Navigator>
   );
 }

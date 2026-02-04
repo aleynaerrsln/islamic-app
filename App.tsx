@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme, View, ActivityIndicator } from 'react-native';
+import { useColorScheme } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -10,8 +10,6 @@ import { TabNavigator } from './src/navigation/TabNavigator';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { lightTheme, darkTheme } from './src/theme';
 import { useSettingsStore } from './src/store/settingsStore';
-// Firebase geçici olarak devre dışı - crash testi
-// import { analyticsService, crashlyticsService, AnalyticsEvents } from './src/hooks/useAnalytics';
 
 const ONBOARDING_KEY = '@islamic_app_onboarding_complete';
 
@@ -19,7 +17,7 @@ export default function App() {
   const systemColorScheme = useColorScheme();
   const { theme: appTheme } = useSettingsStore();
 
-  const [isLoading, setIsLoading] = useState(true);
+  // Hızlı açılış için: varsayılan olarak false başla, ana uygulamayı hemen göster
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Tema seçimi
@@ -28,7 +26,7 @@ export default function App() {
 
   const theme = isDark ? darkTheme : lightTheme;
 
-  // Onboarding durumunu kontrol et
+  // Onboarding durumunu kontrol et (arka planda)
   useEffect(() => {
     checkOnboarding();
   }, []);
@@ -36,12 +34,11 @@ export default function App() {
   const checkOnboarding = async () => {
     try {
       const completed = await AsyncStorage.getItem(ONBOARDING_KEY);
-      setShowOnboarding(completed !== 'true');
+      if (completed !== 'true') {
+        setShowOnboarding(true);
+      }
     } catch (error) {
-      setShowOnboarding(true);
       console.error('checkOnboarding error:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -54,19 +51,7 @@ export default function App() {
     }
   };
 
-  // Yükleniyor
-  if (isLoading) {
-    return (
-      <SafeAreaProvider>
-        <PaperProvider theme={theme}>
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-          </View>
-        </PaperProvider>
-      </SafeAreaProvider>
-    );
-  }
-
+  // Hızlı açılış - loading spinner yok, direkt render
   return (
     <SafeAreaProvider>
       <PaperProvider theme={theme}>

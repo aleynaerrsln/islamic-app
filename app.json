@@ -15,6 +15,7 @@
     "ios": {
       "bundleIdentifier": "com.namazvakti.app",
       "supportsTablet": true,
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": [
           "fetch",
@@ -30,6 +31,7 @@
     },
     "android": {
       "package": "com.namazvakti.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -61,7 +63,16 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Yakındaki camileri bulmak için konumunuza ihtiyacımız var."
         }
-      ]
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-4083708100535757~3007768564",
+          "iosAppId": "ca-app-pub-4083708100535757~3007768564"
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/crashlytics"
     ],
     "extra": {
       "eas": {

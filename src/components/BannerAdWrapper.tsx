@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 
-type BannerType = 'HOME' | 'QURAN' | 'SETTINGS';
+type BannerType = 'HOME' | 'QURAN' | 'SETTINGS' | 'RAMADAN' | 'TASBIH';
 
 interface BannerAdWrapperProps {
   type: BannerType;
+  position?: 'top' | 'bottom';
 }
 
 // Lazy import için dinamik yükleme
@@ -12,9 +13,11 @@ let BannerAd: any = null;
 let BannerAdSize: any = null;
 let TestIds: any = null;
 
-export function BannerAdWrapper({ type }: BannerAdWrapperProps) {
+export function BannerAdWrapper({ type, position = 'top' }: BannerAdWrapperProps) {
   const [isReady, setIsReady] = useState(false);
   const [adUnitId, setAdUnitId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [adLoaded, setAdLoaded] = useState(false);
 
   useEffect(() => {
     const initAds = async () => {
@@ -39,28 +42,50 @@ export function BannerAdWrapper({ type }: BannerAdWrapperProps) {
           case 'SETTINGS':
             unitId = AD_UNIT_IDS.BANNER_SETTINGS;
             break;
+          case 'RAMADAN':
+            unitId = AD_UNIT_IDS.BANNER_RAMADAN;
+            break;
+          case 'TASBIH':
+            unitId = AD_UNIT_IDS.BANNER_TASBIH;
+            break;
           default:
             unitId = TestIds.BANNER;
         }
 
         setAdUnitId(unitId);
         setIsReady(true);
-      } catch (error) {
-        console.log('Banner ad module not available:', error);
-        // Sessizce başarısız ol - reklam gösterme
+      } catch (err: any) {
+        setError(err?.message || 'AdMob yüklenemedi');
+        console.log('Banner ad module not available:', err);
       }
     };
 
     initAds();
   }, [type]);
 
-  // Modül hazır değilse veya hata varsa boş göster
+  const containerStyle = position === 'bottom' ? styles.containerBottom : styles.container;
+  const debugStyle = position === 'bottom' ? styles.debugContainerBottom : styles.debugContainer;
+
+  // Debug: Hata varsa göster
+  if (error) {
+    return (
+      <View style={debugStyle}>
+        <Text style={styles.debugText}>AdMob Hata: {error}</Text>
+      </View>
+    );
+  }
+
+  // Debug: Yükleniyor
   if (!isReady || !adUnitId || !BannerAd) {
-    return null;
+    return (
+      <View style={debugStyle}>
+        <Text style={styles.debugText}>AdMob yükleniyor...</Text>
+      </View>
+    );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={containerStyle}>
       <BannerAd
         unitId={adUnitId}
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
@@ -68,10 +93,12 @@ export function BannerAdWrapper({ type }: BannerAdWrapperProps) {
           requestNonPersonalizedAdsOnly: true,
         }}
         onAdLoaded={() => {
+          setAdLoaded(true);
           console.log('Banner ad loaded:', type);
         }}
-        onAdFailedToLoad={(error: any) => {
-          console.log('Banner ad failed to load:', type, error);
+        onAdFailedToLoad={(err: any) => {
+          setError(err?.message || 'Reklam yüklenemedi');
+          console.log('Banner ad failed to load:', type, err);
         }}
       />
     </View>
@@ -83,5 +110,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
+    marginTop: 35,
+    marginBottom: 4,
+  },
+  containerBottom: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    marginTop: 8,
+    marginBottom: 100,
+  },
+  debugContainer: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 8,
+    marginTop: 35,
+    marginHorizontal: 16,
+    marginBottom: 4,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  debugContainerBottom: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 8,
+    marginTop: 8,
+    marginHorizontal: 16,
+    marginBottom: 100,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  debugText: {
+    color: '#fff',
+    fontSize: 12,
   },
 });

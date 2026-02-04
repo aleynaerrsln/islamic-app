@@ -51,60 +51,37 @@ export function useQibla(location: Location | null): UseQiblaResult {
   const prevHeading = useRef<number>(0);
   const calibrationCount = useRef<number>(0);
 
-  // Açı farkını hesapla (kısa yoldan, -180 ile +180 arası)
-  const angleDifference = useCallback((a: number, b: number): number => {
+  // Açı farkını hesapla (kısa yoldan, -180 ile +180 arası) - ref for stable function
+  const angleDifferenceRef = useRef((a: number, b: number): number => {
     let diff = a - b;
     while (diff > 180) diff -= 360;
     while (diff < -180) diff += 360;
     return diff;
-  }, []);
+  });
 
-  // Gelişmiş low-pass filter uygula
-  const smoothHeading = useCallback((newHeading: number): number => {
-    // Önceki değer yoksa direkt kullan
+  // Gelişmiş low-pass filter uygula - ref for stable function
+  const smoothHeadingRef = useRef((newHeading: number): number => {
     if (prevHeading.current === 0 && calibrationCount.current < 3) {
       prevHeading.current = newHeading;
       return newHeading;
     }
 
-    const diff = angleDifference(newHeading, prevHeading.current);
+    const diff = angleDifferenceRef.current(newHeading, prevHeading.current);
     let smoothed = prevHeading.current + diff * SMOOTHING_FACTOR;
 
-    // 0-360 aralığına normalize et
     if (smoothed < 0) smoothed += 360;
     if (smoothed >= 360) smoothed -= 360;
 
     prevHeading.current = smoothed;
     return smoothed;
-  }, [angleDifference]);
+  });
 
-  // Magnetometer verilerini compass heading'e çevir
-  // Formül: Telefon düz tutulduğunda (ekran yukarı), telefonun üstü nereyi gösteriyor
-  const calculateHeading = useCallback((x: number, y: number, _z: number): number => {
-    // Standart pusula formülü
-    // atan2(-x, y) telefonun üst kısmının manyetik kuzeyden saatı yönünde açısını verir
-    // Not: Expo Magnetometer koordinat sistemi:
-    // - x: sağa doğru pozitif
-    // - y: yukarı (telefonun üstüne) doğru pozitif
-    // - z: ekrandan dışarı doğru pozitif
-
-    let heading: number;
-
-    if (Platform.OS === 'ios') {
-      // iOS: y ekseni telefonun üstünü gösterir
-      heading = Math.atan2(-x, y) * (180 / Math.PI);
-    } else {
-      // Android: y ekseni telefonun üstünü gösterir
-      heading = Math.atan2(-x, y) * (180 / Math.PI);
-    }
-
-    // 0-360 aralığına normalize et
-    if (heading < 0) {
-      heading += 360;
-    }
-
+  // Magnetometer verilerini compass heading'e çevir - ref for stable function
+  const calculateHeadingRef = useRef((x: number, y: number, _z: number): number => {
+    let heading = Math.atan2(-x, y) * (180 / Math.PI);
+    if (heading < 0) heading += 360;
     return heading;
-  }, []);
+  });
 
   // Kıble yönünü API'den al ve manyetik sapmayı hesapla
   useEffect(() => {
@@ -139,16 +116,23 @@ export function useQibla(location: Location | null): UseQiblaResult {
     fetchQiblaDirection();
   }, [location]);
 
-  // Magnetometer'ı başlat
+  // Manyetik sapma değerini ref'e kaydet (closure'da kullanmak için)
+  const magneticDeclinationRef = useRef(magneticDeclination);
+  useEffect(() => {
+    magneticDeclinationRef.current = magneticDeclination;
+  }, [magneticDeclination]);
+
+  // Magnetometer'ı başlat - sadece location değiştiğinde yeniden başlat
   useEffect(() => {
     let subscription: any;
+    let isMounted = true;
 
     const startMagnetometer = async () => {
       try {
         const isAvailable = await Magnetometer.isAvailableAsync();
 
         if (!isAvailable) {
-          setError('Pusula sensörü bulunamadı');
+          if (isMounted) setError('Pusula sensörü bulunamadı');
           return;
         }
 
@@ -156,16 +140,16 @@ export function useQibla(location: Location | null): UseQiblaResult {
         Magnetometer.setUpdateInterval(50);
 
         subscription = Magnetometer.addListener((data) => {
+          if (!isMounted) return;
+
           // Ham manyetik başlık hesapla
-          const rawMagneticHeading = calculateHeading(data.x, data.y, data.z);
+          const rawMagneticHeading = calculateHeadingRef.current(data.x, data.y, data.z);
 
           // Low-pass filter uygula
-          const smoothedMagneticHeading = smoothHeading(rawMagneticHeading);
+          const smoothedMagneticHeading = smoothHeadingRef.current(rawMagneticHeading);
 
           // Manyetik sapmayı ekleyerek gerçek kuzeye göre başlık hesapla
-          // Manyetik sapma pozitifse (doğu), gerçek kuzey manyetik kuzeyden batıdadır
-          // Bu yüzden manyetik başlığa ekliyoruz
-          let trueHeading = smoothedMagneticHeading + magneticDeclination;
+          let trueHeading = smoothedMagneticHeading + magneticDeclinationRef.current;
 
           // 0-360 aralığına normalize et
           if (trueHeading < 0) trueHeading += 360;
@@ -180,18 +164,19 @@ export function useQibla(location: Location | null): UseQiblaResult {
           }
         });
       } catch (err) {
-        setError('Pusula başlatılamadı');
+        if (isMounted) setError('Pusula başlatılamadı');
       }
     };
 
     startMagnetometer();
 
     return () => {
+      isMounted = false;
       if (subscription) {
         subscription.remove();
       }
     };
-  }, [calculateHeading, smoothHeading, magneticDeclination]);
+  }, [location]); // Sadece location değiştiğinde restart
 
   // Kıble açısını hesapla (pusula yönüne göre)
   const qiblaAngle = (qiblaDirection - compassHeading + 360) % 360;
