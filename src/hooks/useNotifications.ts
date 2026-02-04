@@ -161,28 +161,30 @@ export function useNotifications(): UseNotificationsResult {
         'prayer-times-silent',
         'prayer-times-ezan-v3',
         'prayer-times-silent-v3',
+        'namaz-ezan-v4', // Eski uzun ezan sesi kanalı
+        'namaz-default-v5',
       ];
       for (const channel of oldChannels) {
         await Notifications.deleteNotificationChannelAsync(channel).catch(() => {});
       }
 
-      // Namaz vakti bildirimleri için kanal (ezan sesli) - v4 YENI
-      // ÖNEMLI: Kullanıcı uygulamayı silip yeniden yüklemeli veya
-      // Android Ayarlar > Uygulamalar > Bu Uygulama > Bildirimler > Kanalları sıfırla yapmalı
-      await Notifications.setNotificationChannelAsync('namaz-ezan-v4', {
+      // Namaz vakti bildirimleri için kanal (ezan sesli) - v5 YENI
+      // Kısa ezan (25 saniye) - Android bildirim sesleri max 30sn destekler
+      // ÖNEMLI: Kullanıcı uygulamayı silip yeniden yüklemeli
+      await Notifications.setNotificationChannelAsync('namaz-ezan-v5', {
         name: 'Namaz Vakitleri (Ezan Sesli)',
         description: 'Namaz vakitlerinde ezan sesi ile bildirim',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#1B5E20',
-        sound: 'ezan', // raw/ezan.mp3 dosyası
+        sound: 'ezan', // raw/ezan.mp3 dosyası (25 saniye - kısaltılmış)
         enableVibrate: true,
         showBadge: true,
         bypassDnd: true, // Rahatsız etme modunu geç
       });
 
       // Varsayılan sesli namaz vakti bildirimleri için kanal - v4
-      await Notifications.setNotificationChannelAsync('namaz-default-v4', {
+      await Notifications.setNotificationChannelAsync('namaz-default-v5', {
         name: 'Namaz Vakitleri (Varsayılan Ses)',
         description: 'Namaz vakitlerinde varsayılan bildirim sesi',
         importance: Notifications.AndroidImportance.HIGH,
@@ -201,7 +203,7 @@ export function useNotifications(): UseNotificationsResult {
         sound: 'default',
       });
 
-      console.log('Bildirim kanalları oluşturuldu: namaz-ezan-v4, namaz-default-v4');
+      console.log('Bildirim kanalları oluşturuldu: namaz-ezan-v5, namaz-default-v5');
     }
 
     // Push token al (opsiyonel - Firebase için gerekli)
@@ -249,7 +251,7 @@ export function useNotifications(): UseNotificationsResult {
             type: Notifications.SchedulableTriggerInputTypes.DATE,
             date: prayerDate,
             channelId: Platform.OS === 'android'
-              ? (ezanSoundEnabled ? 'namaz-ezan-v4' : 'namaz-default-v4')
+              ? (ezanSoundEnabled ? 'namaz-ezan-v5' : 'namaz-default-v5')
               : undefined,
           },
         });
@@ -274,7 +276,7 @@ export function useNotifications(): UseNotificationsResult {
 
 // Test bildirimi gönder
 export async function sendTestNotification(withEzan: boolean = false): Promise<void> {
-  console.log(`Test bildirimi gönderiliyor, ezan: ${withEzan}, kanal: ${withEzan ? 'namaz-ezan-v4' : 'namaz-default-v4'}`);
+  console.log(`Test bildirimi gönderiliyor, ezan: ${withEzan}, kanal: ${withEzan ? 'namaz-ezan-v5' : 'namaz-default-v5'}`);
   await Notifications.scheduleNotificationAsync({
     content: {
       title: withEzan ? 'Ezan Sesi Testi 🕌' : 'Test Bildirimi',
@@ -285,7 +287,7 @@ export async function sendTestNotification(withEzan: boolean = false): Promise<v
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
       seconds: 2,
       channelId: Platform.OS === 'android'
-        ? (withEzan ? 'namaz-ezan-v4' : 'namaz-default-v4')
+        ? (withEzan ? 'namaz-ezan-v5' : 'namaz-default-v5')
         : undefined,
     },
   });
